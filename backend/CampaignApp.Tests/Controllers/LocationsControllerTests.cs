@@ -1,7 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using CampaignApp.Application.DTOs;
 using CampaignApp.Domain.Entities;
 using CampaignApp.Domain.Enums;
@@ -12,16 +10,6 @@ namespace CampaignApp.Tests.Controllers;
 
 public class LocationsControllerTests : IClassFixture<WebApiFactory>
 {
-    // The server (Program.cs) serializes enums as strings via a
-    // JsonStringEnumConverter registered on MVC's JSON options; the test's
-    // HttpClient uses System.Text.Json defaults for its own
-    // ReadFromJsonAsync/GetFromJsonAsync calls, which doesn't know about
-    // that converter, so LocationDto.Type needs it passed explicitly here.
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        Converters = { new JsonStringEnumConverter() },
-    };
-
     private readonly WebApiFactory _factory;
     private readonly HttpClient _client;
 
@@ -117,7 +105,7 @@ public class LocationsControllerTests : IClassFixture<WebApiFactory>
             DmNotes = "Eldrin secretly works with the Black Hand.",
         });
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
-        var created = await createResponse.Content.ReadFromJsonAsync<LocationDto>(JsonOptions);
+        var created = await createResponse.Content.ReadFromJsonAsync<LocationDto>(TestJsonOptions.Default);
         Assert.NotNull(created);
         Assert.Equal(campaignId, created!.CampaignId);
         Assert.Equal(cityId, created.CityId);
@@ -125,11 +113,11 @@ public class LocationsControllerTests : IClassFixture<WebApiFactory>
         Assert.Equal(LocationType.Tavern, created.Type);
 
         var listResponse = await _client.GetFromJsonAsync<List<LocationDto>>(
-            $"/api/campaigns/{campaignId}/locations", JsonOptions);
+            $"/api/campaigns/{campaignId}/locations", TestJsonOptions.Default);
         Assert.Contains(listResponse!, l => l.Id == created.Id);
 
         var filteredResponse = await _client.GetFromJsonAsync<List<LocationDto>>(
-            $"/api/campaigns/{campaignId}/locations?cityId={cityId}", JsonOptions);
+            $"/api/campaigns/{campaignId}/locations?cityId={cityId}", TestJsonOptions.Default);
         Assert.Contains(filteredResponse!, l => l.Id == created.Id);
 
         var getResponse = await _client.GetAsync($"/api/locations/{created.Id}");
@@ -142,7 +130,7 @@ public class LocationsControllerTests : IClassFixture<WebApiFactory>
             Type = LocationType.Landmark,
         });
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
-        var updated = await updateResponse.Content.ReadFromJsonAsync<LocationDto>(JsonOptions);
+        var updated = await updateResponse.Content.ReadFromJsonAsync<LocationDto>(TestJsonOptions.Default);
         Assert.Equal("Ironforge Inn (Renamed)", updated!.Name);
         Assert.Equal(LocationType.Landmark, updated.Type);
 

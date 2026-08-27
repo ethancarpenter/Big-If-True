@@ -32,6 +32,8 @@ builder.Services.AddScoped<ICityRepository, CityRepository>();
 builder.Services.AddScoped<ICityService, CityService>();
 builder.Services.AddScoped<ILocationRepository, LocationRepository>();
 builder.Services.AddScoped<ILocationService, LocationService>();
+builder.Services.AddScoped<INpcRepository, NpcRepository>();
+builder.Services.AddScoped<INpcService, NpcService>();
 builder.Services.AddScoped<ICurrentUserProvider, PlaceholderCurrentUserProvider>();
 
 builder.Services.AddCors(options =>
