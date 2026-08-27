@@ -37,6 +37,41 @@ export interface CityRequest {
   alignment?: string;
 }
 
+export const LOCATION_TYPES = [
+  "Tavern",
+  "Temple",
+  "Shop",
+  "Government",
+  "Residence",
+  "Dungeon",
+  "Landmark",
+  "Wilderness",
+  "Other",
+] as const;
+
+export type LocationType = (typeof LOCATION_TYPES)[number];
+
+export interface Location {
+  id: string;
+  campaignId: string;
+  cityId: string;
+  cityName: string;
+  name: string;
+  type: LocationType;
+  description: string | null;
+  dmNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LocationRequest {
+  cityId: string;
+  name: string;
+  type: LocationType;
+  description?: string;
+  dmNotes?: string;
+}
+
 export class ApiNotFoundError extends Error {
   constructor() {
     super("Not found");
@@ -120,5 +155,41 @@ export async function updateCity(id: string, data: CityRequest): Promise<City> {
 
 export async function deleteCity(id: string): Promise<void> {
   const response = await fetch(`${API_URL}/api/cities/${id}`, { method: "DELETE" });
+  return handleResponse<void>(response);
+}
+
+export async function getLocationsForCampaign(campaignId: string, cityId?: string): Promise<Location[]> {
+  const query = cityId ? `?cityId=${cityId}` : "";
+  const response = await fetch(`${API_URL}/api/campaigns/${campaignId}/locations${query}`, {
+    cache: "no-store",
+  });
+  return handleResponse<Location[]>(response);
+}
+
+export async function getLocation(id: string): Promise<Location> {
+  const response = await fetch(`${API_URL}/api/locations/${id}`, { cache: "no-store" });
+  return handleResponse<Location>(response);
+}
+
+export async function createLocation(campaignId: string, data: LocationRequest): Promise<Location> {
+  const response = await fetch(`${API_URL}/api/campaigns/${campaignId}/locations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Location>(response);
+}
+
+export async function updateLocation(id: string, data: LocationRequest): Promise<Location> {
+  const response = await fetch(`${API_URL}/api/locations/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Location>(response);
+}
+
+export async function deleteLocation(id: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/locations/${id}`, { method: "DELETE" });
   return handleResponse<void>(response);
 }

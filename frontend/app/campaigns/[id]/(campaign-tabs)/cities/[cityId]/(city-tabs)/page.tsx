@@ -1,9 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DeleteEntityButton } from "@/components/DeleteEntityButton";
 import { ApiNotFoundError, getCity } from "@/lib/api";
 
-interface CityDetailPageProps {
+interface CityOverviewPageProps {
   params: Promise<{ id: string; cityId: string }>;
 }
 
@@ -14,8 +12,8 @@ const infoFields: { label: string; key: "population" | "government" | "region" |
   { label: "Alignment", key: "alignment" },
 ];
 
-export default async function CityDetailPage({ params }: CityDetailPageProps) {
-  const { id: campaignId, cityId } = await params;
+export default async function CityOverviewPage({ params }: CityOverviewPageProps) {
+  const { cityId } = await params;
 
   let city;
   try {
@@ -31,24 +29,6 @@ export default async function CityDetailPage({ params }: CityDetailPageProps) {
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h2 className="font-serif text-2xl font-semibold text-foreground">{city.name}</h2>
-        <div className="flex gap-3">
-          <Link
-            href={`/campaigns/${campaignId}/cities/${city.id}/edit`}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-white/5"
-          >
-            Edit
-          </Link>
-          <DeleteEntityButton
-            kind="city"
-            id={city.id}
-            name={city.name}
-            redirectTo={`/campaigns/${campaignId}/cities`}
-          />
-        </div>
-      </div>
-
       {presentFields.length > 0 && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {presentFields.map((field) => (
@@ -60,7 +40,11 @@ export default async function CityDetailPage({ params }: CityDetailPageProps) {
         </div>
       )}
 
-      {city.description && <p className="text-muted">{city.description}</p>}
+      {city.description ? (
+        <p className="text-muted">{city.description}</p>
+      ) : (
+        <p className="text-muted italic">No description yet.</p>
+      )}
 
       <p className="text-xs text-muted">
         Created {new Date(city.createdAt).toLocaleString()} · Updated{" "}

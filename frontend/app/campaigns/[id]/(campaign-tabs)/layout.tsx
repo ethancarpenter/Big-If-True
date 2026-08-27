@@ -41,6 +41,7 @@ export default async function CampaignLayout({ children, params }: CampaignLayou
         tabs={[
           { label: "Overview", href: `/campaigns/${campaign.id}` },
           { label: "Cities", href: `/campaigns/${campaign.id}/cities` },
+          { label: "Locations", href: `/campaigns/${campaign.id}/locations` },
         ]}
       />
 
