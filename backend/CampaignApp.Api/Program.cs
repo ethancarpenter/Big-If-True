@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using CampaignApp.Api.Infrastructure;
 using CampaignApp.Application.Interfaces;
 using CampaignApp.Application.Services;
@@ -11,7 +12,8 @@ const string DevCorsPolicy = "DevCorsPolicy";
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -28,6 +30,8 @@ builder.Services.AddScoped<ICampaignRepository, CampaignRepository>();
 builder.Services.AddScoped<ICampaignService, CampaignService>();
 builder.Services.AddScoped<ICityRepository, CityRepository>();
 builder.Services.AddScoped<ICityService, CityService>();
+builder.Services.AddScoped<ILocationRepository, LocationRepository>();
+builder.Services.AddScoped<ILocationService, LocationService>();
 builder.Services.AddScoped<ICurrentUserProvider, PlaceholderCurrentUserProvider>();
 
 builder.Services.AddCors(options =>
