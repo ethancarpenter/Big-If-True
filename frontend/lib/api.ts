@@ -144,9 +144,49 @@ export interface NpcRequest {
   portraitUrl?: string;
 }
 
+export const NPC_LOCATION_RELATIONSHIP_TYPES = [
+  "LivesAt",
+  "WorksAt",
+  "FrequentlyVisits",
+  "Owns",
+  "Guards",
+  "Other",
+] as const;
+
+export type NpcLocationRelationshipType = (typeof NPC_LOCATION_RELATIONSHIP_TYPES)[number];
+
+export interface NpcLocation {
+  id: string;
+  npcId: string;
+  npcName: string;
+  locationId: string;
+  locationName: string;
+  cityName: string;
+  relationshipType: NpcLocationRelationshipType;
+  isPrimary: boolean;
+  createdAt: string;
+}
+
+export interface CreateNpcLocationRequest {
+  locationId: string;
+  relationshipType: NpcLocationRelationshipType;
+  isPrimary: boolean;
+}
+
+export interface UpdateNpcLocationRequest {
+  relationshipType: NpcLocationRelationshipType;
+  isPrimary: boolean;
+}
+
 export class ApiNotFoundError extends Error {
   constructor() {
     super("Not found");
+  }
+}
+
+export class ApiConflictError extends Error {
+  constructor() {
+    super("Conflict");
   }
 }
 
@@ -154,6 +194,9 @@ async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     if (response.status === 404) {
       throw new ApiNotFoundError();
+    }
+    if (response.status === 409) {
+      throw new ApiConflictError();
     }
     const body = await response.text();
     throw new Error(`API request failed (${response.status}): ${body}`);
@@ -296,5 +339,38 @@ export async function updateNpc(id: string, data: NpcRequest): Promise<Npc> {
 
 export async function deleteNpc(id: string): Promise<void> {
   const response = await fetch(`${API_URL}/api/npcs/${id}`, { method: "DELETE" });
+  return handleResponse<void>(response);
+}
+
+export async function getNpcLocationsForNpc(npcId: string): Promise<NpcLocation[]> {
+  const response = await fetch(`${API_URL}/api/npcs/${npcId}/locations`, { cache: "no-store" });
+  return handleResponse<NpcLocation[]>(response);
+}
+
+export async function getNpcLocationsForLocation(locationId: string): Promise<NpcLocation[]> {
+  const response = await fetch(`${API_URL}/api/locations/${locationId}/npcs`, { cache: "no-store" });
+  return handleResponse<NpcLocation[]>(response);
+}
+
+export async function createNpcLocation(npcId: string, data: CreateNpcLocationRequest): Promise<NpcLocation> {
+  const response = await fetch(`${API_URL}/api/npcs/${npcId}/locations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<NpcLocation>(response);
+}
+
+export async function updateNpcLocation(id: string, data: UpdateNpcLocationRequest): Promise<NpcLocation> {
+  const response = await fetch(`${API_URL}/api/npc-locations/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<NpcLocation>(response);
+}
+
+export async function deleteNpcLocation(id: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/npc-locations/${id}`, { method: "DELETE" });
   return handleResponse<void>(response);
 }

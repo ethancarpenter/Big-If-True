@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 import { AlignmentBadge } from "@/components/AlignmentBadge";
 import { Badge } from "@/components/Badge";
 import { DeleteEntityButton } from "@/components/DeleteEntityButton";
+import { NpcLocationsSection } from "@/components/NpcLocationsSection";
 import { StatusBadge } from "@/components/StatusBadge";
 import { NPC_STATUS_TONE } from "@/components/npc-status-tone";
-import { ApiNotFoundError, getNpc } from "@/lib/api";
+import { ApiNotFoundError, getLocationsForCampaign, getNpc, getNpcLocationsForNpc } from "@/lib/api";
 
 interface NpcDetailPageProps {
   params: Promise<{ id: string; npcId: string }>;
@@ -33,6 +34,10 @@ export default async function NpcDetailPage({ params }: NpcDetailPageProps) {
   }
 
   const presentFields = profileFields.filter((field) => npc[field.key] !== null && npc[field.key] !== "");
+  const [relationships, campaignLocations] = await Promise.all([
+    getNpcLocationsForNpc(npcId),
+    getLocationsForCampaign(campaignId),
+  ]);
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -96,6 +101,13 @@ export default async function NpcDetailPage({ params }: NpcDetailPageProps) {
           <p className="mt-1 text-sm text-foreground">{npc.dmNotes}</p>
         </div>
       )}
+
+      <NpcLocationsSection
+        npc={npc}
+        campaignId={campaignId}
+        relationships={relationships}
+        campaignLocations={campaignLocations}
+      />
 
       <p className="text-xs text-muted">
         Created {new Date(npc.createdAt).toLocaleString()} · Updated{" "}

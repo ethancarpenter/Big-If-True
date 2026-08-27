@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/Badge";
 import { DeleteEntityButton } from "@/components/DeleteEntityButton";
-import { ApiNotFoundError, getLocation } from "@/lib/api";
+import { RELATIONSHIP_TYPE_LABELS } from "@/components/npc-location-relationship-labels";
+import { ApiNotFoundError, getLocation, getNpcLocationsForLocation } from "@/lib/api";
 
 interface LocationDetailPageProps {
   params: Promise<{ id: string; locationId: string }>;
@@ -20,6 +21,8 @@ export default async function LocationDetailPage({ params }: LocationDetailPageP
     }
     throw error;
   }
+
+  const npcRelationships = await getNpcLocationsForLocation(locationId);
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -69,6 +72,35 @@ export default async function LocationDetailPage({ params }: LocationDetailPageP
           <p className="mt-1 text-sm text-foreground">{location.dmNotes}</p>
         </div>
       )}
+
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-foreground">NPCs</h3>
+        {npcRelationships.length === 0 ? (
+          <p className="text-sm italic text-muted">No NPCs linked to this location yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {npcRelationships.map((relationship) => (
+              <li
+                key={relationship.id}
+                className="flex items-center gap-3 rounded-md border border-border bg-surface px-4 py-3"
+              >
+                <Link
+                  href={`/campaigns/${campaignId}/npcs/${relationship.npcId}`}
+                  className="text-sm font-medium text-accent hover:underline"
+                >
+                  {relationship.npcName}
+                </Link>
+                <Badge>{RELATIONSHIP_TYPE_LABELS[relationship.relationshipType]}</Badge>
+                {relationship.isPrimary && (
+                  <span className="inline-flex items-center rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-medium text-gold">
+                    ★ Primary
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <p className="text-xs text-muted">
         Created {new Date(location.createdAt).toLocaleString()} · Updated{" "}
