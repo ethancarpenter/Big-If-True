@@ -28,6 +28,23 @@ public class CampaignRepository : ICampaignRepository
             .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
     }
 
+    public async Task<List<Campaign>> SearchAsync(Guid userId, string query, int limit)
+    {
+        // .ToLower()/.Contains()/.StartsWith() rather than Npgsql's EF.Functions.ILike:
+        // these translate to plain SQL on Postgres (LOWER()+LIKE) *and* evaluate
+        // correctly against the InMemory provider every test in this suite uses -
+        // ILike throws "not supported" once InMemory has to evaluate it against
+        // actual rows, since it's an Npgsql-only function InMemory has no
+        // translation for.
+        var normalizedQuery = query.ToLower();
+        return await _context.Campaigns
+            .Where(c => c.UserId == userId && c.Name.ToLower().Contains(normalizedQuery))
+            .OrderBy(c => c.Name.ToLower() == normalizedQuery ? 0 : c.Name.ToLower().StartsWith(normalizedQuery) ? 1 : 2)
+            .ThenBy(c => c.Name)
+            .Take(limit)
+            .ToListAsync();
+    }
+
     public async Task AddAsync(Campaign campaign)
     {
         await _context.Campaigns.AddAsync(campaign);

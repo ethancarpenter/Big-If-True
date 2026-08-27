@@ -31,6 +31,20 @@ public class QuestRepository : IQuestRepository
             .FirstOrDefaultAsync(q => q.Id == id);
     }
 
+    public async Task<List<Quest>> SearchAsync(Guid userId, string query, int limit)
+    {
+        // See CampaignRepository.SearchAsync for why .ToLower()/.Contains() is used
+        // instead of Npgsql's EF.Functions.ILike (InMemory-provider compatibility).
+        var normalizedQuery = query.ToLower();
+        return await _context.Quests
+            .Include(q => q.Campaign)
+            .Where(q => q.Campaign.UserId == userId && q.Name.ToLower().Contains(normalizedQuery))
+            .OrderBy(q => q.Name.ToLower() == normalizedQuery ? 0 : q.Name.ToLower().StartsWith(normalizedQuery) ? 1 : 2)
+            .ThenBy(q => q.Name)
+            .Take(limit)
+            .ToListAsync();
+    }
+
     public async Task AddAsync(Quest quest)
     {
         await _context.Quests.AddAsync(quest);

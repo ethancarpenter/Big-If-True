@@ -29,6 +29,20 @@ public class CityRepository : ICityRepository
             .FirstOrDefaultAsync(c => c.Id == id);
     }
 
+    public async Task<List<City>> SearchAsync(Guid userId, string query, int limit)
+    {
+        // See CampaignRepository.SearchAsync for why .ToLower()/.Contains() is used
+        // instead of Npgsql's EF.Functions.ILike (InMemory-provider compatibility).
+        var normalizedQuery = query.ToLower();
+        return await _context.Cities
+            .Include(c => c.Campaign)
+            .Where(c => c.Campaign.UserId == userId && c.Name.ToLower().Contains(normalizedQuery))
+            .OrderBy(c => c.Name.ToLower() == normalizedQuery ? 0 : c.Name.ToLower().StartsWith(normalizedQuery) ? 1 : 2)
+            .ThenBy(c => c.Name)
+            .Take(limit)
+            .ToListAsync();
+    }
+
     public async Task AddAsync(City city)
     {
         await _context.Cities.AddAsync(city);

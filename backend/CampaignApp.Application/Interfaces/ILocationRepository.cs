@@ -10,6 +10,9 @@ public interface ILocationRepository
     /// <summary>Includes Campaign (for ownership checks) and City (for CityName on the DTO).</summary>
     Task<Location?> GetByIdAsync(Guid id);
 
+    /// <summary>Includes Campaign and City. Name matches query (case-insensitive, partial), ranked exact/prefix/contains, capped at limit.</summary>
+    Task<List<Location>> SearchAsync(Guid userId, string query, int limit);
+
     Task AddAsync(Location location);
     void Update(Location location);
     void Remove(Location location);
