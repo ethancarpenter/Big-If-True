@@ -31,3 +31,7 @@ docker-compose.override.yml
 .idea/
 .DS_Store
 Thumbs.db
+
+# Stray PowerShell module analysis cache (has leaked into the repo root
+# during some tool sessions when a shell's profile paths resolved here)
+/Microsoft/
