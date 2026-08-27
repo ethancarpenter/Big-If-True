@@ -26,6 +26,8 @@ builder.Services.AddHealthChecks()
 
 builder.Services.AddScoped<ICampaignRepository, CampaignRepository>();
 builder.Services.AddScoped<ICampaignService, CampaignService>();
+builder.Services.AddScoped<ICityRepository, CityRepository>();
+builder.Services.AddScoped<ICityService, CityService>();
 builder.Services.AddScoped<ICurrentUserProvider, PlaceholderCurrentUserProvider>();
 
 builder.Services.AddCors(options =>

@@ -12,9 +12,9 @@ namespace CampaignApp.Tests.Controllers;
 /// Boots the real Api pipeline (Program.cs, DI, controllers) against an
 /// in-memory database and a fixed test user, so ownership enforcement can
 /// be verified through the actual HTTP pipeline rather than just the
-/// service layer.
+/// service layer. Shared across every controller's HTTP-level tests.
 /// </summary>
-public class CampaignsApiFactory : WebApplicationFactory<Program>
+public class WebApiFactory : WebApplicationFactory<Program>
 {
     public Guid TestUserId { get; } = Guid.NewGuid();
 

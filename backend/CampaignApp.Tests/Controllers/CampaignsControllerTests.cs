@@ -7,12 +7,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CampaignApp.Tests.Controllers;
 
-public class CampaignsControllerTests : IClassFixture<CampaignsApiFactory>
+public class CampaignsControllerTests : IClassFixture<WebApiFactory>
 {
-    private readonly CampaignsApiFactory _factory;
+    private readonly WebApiFactory _factory;
     private readonly HttpClient _client;
 
-    public CampaignsControllerTests(CampaignsApiFactory factory)
+    public CampaignsControllerTests(WebApiFactory factory)
     {
         _factory = factory;
         _client = factory.CreateClient();
