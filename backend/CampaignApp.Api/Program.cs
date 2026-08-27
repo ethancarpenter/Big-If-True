@@ -40,6 +40,10 @@ builder.Services.AddScoped<IQuestRepository, QuestRepository>();
 builder.Services.AddScoped<IQuestService, QuestService>();
 builder.Services.AddScoped<IQuestObjectiveRepository, QuestObjectiveRepository>();
 builder.Services.AddScoped<IQuestObjectiveService, QuestObjectiveService>();
+builder.Services.AddScoped<IQuestNpcRepository, QuestNpcRepository>();
+builder.Services.AddScoped<IQuestNpcService, QuestNpcService>();
+builder.Services.AddScoped<IQuestLocationRepository, QuestLocationRepository>();
+builder.Services.AddScoped<IQuestLocationService, QuestLocationService>();
 builder.Services.AddScoped<ICurrentUserProvider, PlaceholderCurrentUserProvider>();
 
 builder.Services.AddCors(options =>
