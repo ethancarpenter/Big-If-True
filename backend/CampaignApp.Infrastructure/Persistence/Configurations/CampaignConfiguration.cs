@@ -21,5 +21,10 @@ public class CampaignConfiguration : IEntityTypeConfiguration<Campaign>
             .HasMaxLength(500);
 
         builder.HasIndex(c => c.UserId);
+
+        builder.HasOne(c => c.User)
+            .WithMany()
+            .HasForeignKey(c => c.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
