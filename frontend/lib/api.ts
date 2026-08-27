@@ -72,6 +72,78 @@ export interface LocationRequest {
   dmNotes?: string;
 }
 
+export const NPC_CLASSES = [
+  "Barbarian",
+  "Bard",
+  "Cleric",
+  "Druid",
+  "Fighter",
+  "Monk",
+  "Paladin",
+  "Ranger",
+  "Rogue",
+  "Sorcerer",
+  "Warlock",
+  "Wizard",
+  "Artificer",
+  "Commoner",
+  "Other",
+] as const;
+
+export type NpcClass = (typeof NPC_CLASSES)[number];
+
+export const ALIGNMENTS = [
+  "LawfulGood",
+  "NeutralGood",
+  "ChaoticGood",
+  "LawfulNeutral",
+  "TrueNeutral",
+  "ChaoticNeutral",
+  "LawfulEvil",
+  "NeutralEvil",
+  "ChaoticEvil",
+] as const;
+
+export type Alignment = (typeof ALIGNMENTS)[number];
+
+export const NPC_STATUSES = ["Alive", "Dead", "Missing", "Unknown"] as const;
+
+export type NpcStatus = (typeof NPC_STATUSES)[number];
+
+export interface Npc {
+  id: string;
+  campaignId: string;
+  name: string;
+  species: string | null;
+  gender: string | null;
+  age: number | null;
+  class: NpcClass | null;
+  alignment: Alignment | null;
+  occupation: string | null;
+  disposition: string | null;
+  description: string | null;
+  dmNotes: string | null;
+  status: NpcStatus;
+  portraitUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NpcRequest {
+  name: string;
+  species?: string;
+  gender?: string;
+  age?: number;
+  class?: NpcClass;
+  alignment?: Alignment;
+  occupation?: string;
+  disposition?: string;
+  description?: string;
+  dmNotes?: string;
+  status: NpcStatus;
+  portraitUrl?: string;
+}
+
 export class ApiNotFoundError extends Error {
   constructor() {
     super("Not found");
@@ -191,5 +263,38 @@ export async function updateLocation(id: string, data: LocationRequest): Promise
 
 export async function deleteLocation(id: string): Promise<void> {
   const response = await fetch(`${API_URL}/api/locations/${id}`, { method: "DELETE" });
+  return handleResponse<void>(response);
+}
+
+export async function getNpcsForCampaign(campaignId: string): Promise<Npc[]> {
+  const response = await fetch(`${API_URL}/api/campaigns/${campaignId}/npcs`, { cache: "no-store" });
+  return handleResponse<Npc[]>(response);
+}
+
+export async function getNpc(id: string): Promise<Npc> {
+  const response = await fetch(`${API_URL}/api/npcs/${id}`, { cache: "no-store" });
+  return handleResponse<Npc>(response);
+}
+
+export async function createNpc(campaignId: string, data: NpcRequest): Promise<Npc> {
+  const response = await fetch(`${API_URL}/api/campaigns/${campaignId}/npcs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Npc>(response);
+}
+
+export async function updateNpc(id: string, data: NpcRequest): Promise<Npc> {
+  const response = await fetch(`${API_URL}/api/npcs/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Npc>(response);
+}
+
+export async function deleteNpc(id: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/npcs/${id}`, { method: "DELETE" });
   return handleResponse<void>(response);
 }

@@ -42,6 +42,7 @@ export default async function CampaignLayout({ children, params }: CampaignLayou
           { label: "Overview", href: `/campaigns/${campaign.id}` },
           { label: "Cities", href: `/campaigns/${campaign.id}/cities` },
           { label: "Locations", href: `/campaigns/${campaign.id}/locations` },
+          { label: "NPCs", href: `/campaigns/${campaign.id}/npcs` },
         ]}
       />
 
