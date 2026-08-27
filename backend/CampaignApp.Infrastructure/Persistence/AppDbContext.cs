@@ -15,6 +15,8 @@ public class AppDbContext : DbContext
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<Npc> Npcs => Set<Npc>();
     public DbSet<NpcLocation> NpcLocations => Set<NpcLocation>();
+    public DbSet<Quest> Quests => Set<Quest>();
+    public DbSet<QuestObjective> QuestObjectives => Set<QuestObjective>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,5 +27,7 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new LocationConfiguration());
         modelBuilder.ApplyConfiguration(new NpcConfiguration());
         modelBuilder.ApplyConfiguration(new NpcLocationConfiguration());
+        modelBuilder.ApplyConfiguration(new QuestConfiguration());
+        modelBuilder.ApplyConfiguration(new QuestObjectiveConfiguration());
     }
 }
