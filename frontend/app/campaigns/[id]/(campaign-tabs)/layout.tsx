@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DeleteCampaignButton } from "@/components/DeleteCampaignButton";
+import { DeleteEntityButton } from "@/components/DeleteEntityButton";
+import { TabNavigation } from "@/components/TabNavigation";
 import { ApiNotFoundError, getCampaign } from "@/lib/api";
 
-interface CampaignDetailPageProps {
+interface CampaignLayoutProps {
+  children: React.ReactNode;
   params: Promise<{ id: string }>;
 }
 
-export default async function CampaignDetailPage({ params }: CampaignDetailPageProps) {
+export default async function CampaignLayout({ children, params }: CampaignLayoutProps) {
   const { id } = await params;
 
   let campaign;
@@ -21,7 +23,7 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
   }
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="font-serif text-3xl font-semibold text-foreground">{campaign.name}</h1>
         <div className="flex gap-3">
@@ -31,16 +33,18 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
           >
             Edit
           </Link>
-          <DeleteCampaignButton campaignId={campaign.id} campaignName={campaign.name} />
+          <DeleteEntityButton kind="campaign" id={campaign.id} name={campaign.name} redirectTo="/campaigns" />
         </div>
       </div>
 
-      {campaign.description && <p className="text-muted">{campaign.description}</p>}
+      <TabNavigation
+        tabs={[
+          { label: "Overview", href: `/campaigns/${campaign.id}` },
+          { label: "Cities", href: `/campaigns/${campaign.id}/cities` },
+        ]}
+      />
 
-      <p className="text-xs text-muted">
-        Created {new Date(campaign.createdAt).toLocaleString()} · Updated{" "}
-        {new Date(campaign.updatedAt).toLocaleString()}
-      </p>
+      {children}
     </div>
   );
 }
