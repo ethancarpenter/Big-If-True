@@ -309,6 +309,48 @@ export interface UpdateQuestLocationRequest {
   notes?: string;
 }
 
+export const QUEST_CONNECTION_TYPES = [
+  "Unlocks",
+  "Requires",
+  "Optional",
+  "AlternativePath",
+  "FailureLeadsTo",
+  "Related",
+] as const;
+
+export type QuestConnectionType = (typeof QUEST_CONNECTION_TYPES)[number];
+
+export interface QuestConnection {
+  id: string;
+  sourceQuestId: string;
+  sourceQuestName: string;
+  targetQuestId: string;
+  targetQuestName: string;
+  connectionType: QuestConnectionType;
+  createdAt: string;
+}
+
+export interface CreateQuestConnectionRequest {
+  sourceQuestId: string;
+  targetQuestId: string;
+  connectionType: QuestConnectionType;
+}
+
+export interface UpdateQuestConnectionRequest {
+  connectionType: QuestConnectionType;
+}
+
+export interface QuestGraphPosition {
+  questId: string;
+  x: number;
+  y: number;
+}
+
+export interface UpdateQuestGraphPositionRequest {
+  x: number;
+  y: number;
+}
+
 export class ApiNotFoundError extends Error {
   constructor() {
     super("Not found");
@@ -316,8 +358,11 @@ export class ApiNotFoundError extends Error {
 }
 
 export class ApiConflictError extends Error {
-  constructor() {
+  reason?: string;
+
+  constructor(reason?: string) {
     super("Conflict");
+    this.reason = reason;
   }
 }
 
@@ -327,7 +372,11 @@ async function handleResponse<T>(response: Response): Promise<T> {
       throw new ApiNotFoundError();
     }
     if (response.status === 409) {
-      throw new ApiConflictError();
+      const reason = await response
+        .json()
+        .then((body) => (typeof body?.reason === "string" ? body.reason : undefined))
+        .catch(() => undefined);
+      throw new ApiConflictError(reason);
     }
     const body = await response.text();
     throw new Error(`API request failed (${response.status}): ${body}`);
@@ -642,4 +691,52 @@ export async function updateQuestLocation(id: string, data: UpdateQuestLocationR
 export async function deleteQuestLocation(id: string): Promise<void> {
   const response = await fetch(`${API_URL}/api/quest-locations/${id}`, { method: "DELETE" });
   return handleResponse<void>(response);
+}
+
+export async function getQuestConnectionsForCampaign(campaignId: string): Promise<QuestConnection[]> {
+  const response = await fetch(`${API_URL}/api/campaigns/${campaignId}/quest-connections`, { cache: "no-store" });
+  return handleResponse<QuestConnection[]>(response);
+}
+
+export async function createQuestConnection(
+  campaignId: string,
+  data: CreateQuestConnectionRequest,
+): Promise<QuestConnection> {
+  const response = await fetch(`${API_URL}/api/campaigns/${campaignId}/quest-connections`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<QuestConnection>(response);
+}
+
+export async function updateQuestConnection(id: string, data: UpdateQuestConnectionRequest): Promise<QuestConnection> {
+  const response = await fetch(`${API_URL}/api/quest-connections/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<QuestConnection>(response);
+}
+
+export async function deleteQuestConnection(id: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/quest-connections/${id}`, { method: "DELETE" });
+  return handleResponse<void>(response);
+}
+
+export async function getQuestGraphPositionsForCampaign(campaignId: string): Promise<QuestGraphPosition[]> {
+  const response = await fetch(`${API_URL}/api/campaigns/${campaignId}/quest-graph-positions`, { cache: "no-store" });
+  return handleResponse<QuestGraphPosition[]>(response);
+}
+
+export async function updateQuestGraphPosition(
+  questId: string,
+  data: UpdateQuestGraphPositionRequest,
+): Promise<QuestGraphPosition> {
+  const response = await fetch(`${API_URL}/api/quests/${questId}/graph-position`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<QuestGraphPosition>(response);
 }
