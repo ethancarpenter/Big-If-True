@@ -11,11 +11,13 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<City> Cities => Set<City>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.ApplyConfiguration(new CampaignConfiguration());
+        modelBuilder.ApplyConfiguration(new CityConfiguration());
     }
 }
