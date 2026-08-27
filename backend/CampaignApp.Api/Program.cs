@@ -1,4 +1,8 @@
+using CampaignApp.Api.Infrastructure;
+using CampaignApp.Application.Interfaces;
+using CampaignApp.Application.Services;
 using CampaignApp.Infrastructure.Persistence;
+using CampaignApp.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +23,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddHealthChecks()
     .AddNpgSql(connectionString!, name: "postgres");
+
+builder.Services.AddScoped<ICampaignRepository, CampaignRepository>();
+builder.Services.AddScoped<ICampaignService, CampaignService>();
+builder.Services.AddScoped<ICurrentUserProvider, PlaceholderCurrentUserProvider>();
 
 builder.Services.AddCors(options =>
 {
@@ -50,3 +58,6 @@ app.MapControllers();
 app.MapHealthChecks("/api/health");
 
 app.Run();
+
+// Exposed so CampaignApp.Tests can bootstrap this app via WebApplicationFactory<Program>.
+public partial class Program { }
