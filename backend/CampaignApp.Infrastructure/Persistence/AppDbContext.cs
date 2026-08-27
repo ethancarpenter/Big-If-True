@@ -19,6 +19,8 @@ public class AppDbContext : DbContext
     public DbSet<QuestObjective> QuestObjectives => Set<QuestObjective>();
     public DbSet<QuestNpc> QuestNpcs => Set<QuestNpc>();
     public DbSet<QuestLocation> QuestLocations => Set<QuestLocation>();
+    public DbSet<QuestConnection> QuestConnections => Set<QuestConnection>();
+    public DbSet<QuestGraphPosition> QuestGraphPositions => Set<QuestGraphPosition>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,5 +35,7 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new QuestObjectiveConfiguration());
         modelBuilder.ApplyConfiguration(new QuestNpcConfiguration());
         modelBuilder.ApplyConfiguration(new QuestLocationConfiguration());
+        modelBuilder.ApplyConfiguration(new QuestConnectionConfiguration());
+        modelBuilder.ApplyConfiguration(new QuestGraphPositionConfiguration());
     }
 }
