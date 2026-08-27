@@ -178,6 +178,67 @@ export interface UpdateNpcLocationRequest {
   isPrimary: boolean;
 }
 
+export const QUEST_STATUSES = ["Planned", "Available", "Active", "Completed", "Failed", "Abandoned"] as const;
+
+export type QuestStatus = (typeof QUEST_STATUSES)[number];
+
+export const QUEST_TYPES = [
+  "MainQuest",
+  "SideQuest",
+  "PersonalQuest",
+  "FactionQuest",
+  "HiddenQuest",
+  "Other",
+] as const;
+
+export type QuestType = (typeof QUEST_TYPES)[number];
+
+export interface QuestObjective {
+  id: string;
+  questId: string;
+  description: string;
+  isCompleted: boolean;
+  sortOrder: number;
+}
+
+export interface Quest {
+  id: string;
+  campaignId: string;
+  name: string;
+  description: string | null;
+  status: QuestStatus;
+  questType: QuestType;
+  recommendedLevelMin: number | null;
+  recommendedLevelMax: number | null;
+  dmNotes: string | null;
+  objectives: QuestObjective[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QuestRequest {
+  name: string;
+  description?: string;
+  status: QuestStatus;
+  questType: QuestType;
+  recommendedLevelMin?: number;
+  recommendedLevelMax?: number;
+  dmNotes?: string;
+}
+
+export interface CreateQuestObjectiveRequest {
+  description: string;
+}
+
+export interface UpdateQuestObjectiveRequest {
+  description: string;
+  isCompleted: boolean;
+}
+
+export interface ReorderQuestObjectivesRequest {
+  objectiveIds: string[];
+}
+
 export class ApiNotFoundError extends Error {
   constructor() {
     super("Not found");
@@ -373,4 +434,76 @@ export async function updateNpcLocation(id: string, data: UpdateNpcLocationReque
 export async function deleteNpcLocation(id: string): Promise<void> {
   const response = await fetch(`${API_URL}/api/npc-locations/${id}`, { method: "DELETE" });
   return handleResponse<void>(response);
+}
+
+export async function getQuestsForCampaign(campaignId: string): Promise<Quest[]> {
+  const response = await fetch(`${API_URL}/api/campaigns/${campaignId}/quests`, { cache: "no-store" });
+  return handleResponse<Quest[]>(response);
+}
+
+export async function getQuest(id: string): Promise<Quest> {
+  const response = await fetch(`${API_URL}/api/quests/${id}`, { cache: "no-store" });
+  return handleResponse<Quest>(response);
+}
+
+export async function createQuest(campaignId: string, data: QuestRequest): Promise<Quest> {
+  const response = await fetch(`${API_URL}/api/campaigns/${campaignId}/quests`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Quest>(response);
+}
+
+export async function updateQuest(id: string, data: QuestRequest): Promise<Quest> {
+  const response = await fetch(`${API_URL}/api/quests/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Quest>(response);
+}
+
+export async function deleteQuest(id: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/quests/${id}`, { method: "DELETE" });
+  return handleResponse<void>(response);
+}
+
+export async function createQuestObjective(questId: string, data: CreateQuestObjectiveRequest): Promise<QuestObjective> {
+  const response = await fetch(`${API_URL}/api/quests/${questId}/objectives`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<QuestObjective>(response);
+}
+
+export async function updateQuestObjective(
+  questId: string,
+  objectiveId: string,
+  data: UpdateQuestObjectiveRequest,
+): Promise<QuestObjective> {
+  const response = await fetch(`${API_URL}/api/quests/${questId}/objectives/${objectiveId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<QuestObjective>(response);
+}
+
+export async function deleteQuestObjective(questId: string, objectiveId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/quests/${questId}/objectives/${objectiveId}`, { method: "DELETE" });
+  return handleResponse<void>(response);
+}
+
+export async function reorderQuestObjectives(
+  questId: string,
+  data: ReorderQuestObjectivesRequest,
+): Promise<QuestObjective[]> {
+  const response = await fetch(`${API_URL}/api/quests/${questId}/objectives/reorder`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<QuestObjective[]>(response);
 }

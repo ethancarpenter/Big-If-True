@@ -2,24 +2,25 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { deleteCampaign, deleteCity, deleteLocation, deleteNpc } from "@/lib/api";
+import { deleteCampaign, deleteCity, deleteLocation, deleteNpc, deleteQuest } from "@/lib/api";
 import { ConfirmationDialog } from "./ConfirmationDialog";
 
 // Functions can't be passed from Server Components into Client Component
 // props, so this switches on `kind` and calls the matching API function
-// itself rather than accepting an onDelete callback. Add a case here as
-// each future entity (Quest) gets a delete action.
+// itself rather than accepting an onDelete callback.
 type DeleteEntityButtonProps =
   | { kind: "campaign"; id: string; name: string; redirectTo: string }
   | { kind: "city"; id: string; name: string; redirectTo: string }
   | { kind: "location"; id: string; name: string; redirectTo: string }
-  | { kind: "npc"; id: string; name: string; redirectTo: string };
+  | { kind: "npc"; id: string; name: string; redirectTo: string }
+  | { kind: "quest"; id: string; name: string; redirectTo: string };
 
 const labels = {
   campaign: "Campaign",
   city: "City",
   location: "Location",
   npc: "NPC",
+  quest: "Quest",
 } as const;
 
 export function DeleteEntityButton(props: DeleteEntityButtonProps) {
@@ -37,8 +38,10 @@ export function DeleteEntityButton(props: DeleteEntityButtonProps) {
       await deleteCity(props.id);
     } else if (props.kind === "location") {
       await deleteLocation(props.id);
-    } else {
+    } else if (props.kind === "npc") {
       await deleteNpc(props.id);
+    } else {
+      await deleteQuest(props.id);
     }
     router.push(props.redirectTo);
     router.refresh();
