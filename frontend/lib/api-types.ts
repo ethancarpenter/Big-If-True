@@ -363,3 +363,15 @@ export interface LoginRequest {
   email: string;
   password: string;
 }
+
+export type SearchResultType = "Campaign" | "City" | "Location" | "Npc" | "Quest";
+
+export interface SearchResult {
+  type: SearchResultType;
+  id: string;
+  name: string;
+  campaignId: string;
+  campaignName: string;
+  parentContext: string | null;
+  url: string;
+}

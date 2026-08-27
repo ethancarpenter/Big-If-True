@@ -25,6 +25,7 @@ import type {
   QuestRequest,
   RegisterRequest,
   ReorderQuestObjectivesRequest,
+  SearchResult,
   UpdateNpcLocationRequest,
   UpdateQuestConnectionRequest,
   UpdateQuestGraphPositionRequest,
@@ -363,4 +364,13 @@ export async function updateQuestGraphPosition(
     body: JSON.stringify(data),
   });
   return handleResponse<QuestGraphPosition>(response);
+}
+
+// A read, but one that must be triggered from a Client Component as the
+// user types (GlobalSearch) - it belongs here in the client-safe module
+// alongside the mutations, not in lib/server-api.ts. No CSRF token needed:
+// it's a GET, and apiFetch only attaches one for unsafe verbs.
+export async function search(query: string, signal?: AbortSignal): Promise<SearchResult[]> {
+  const response = await apiFetch(`/api/search?q=${encodeURIComponent(query)}`, { signal });
+  return handleResponse<SearchResult[]>(response);
 }
