@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Campaign> Campaigns => Set<Campaign>();
     public DbSet<City> Cities => Set<City>();
     public DbSet<Location> Locations => Set<Location>();
+    public DbSet<Npc> Npcs => Set<Npc>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,5 +22,6 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new CampaignConfiguration());
         modelBuilder.ApplyConfiguration(new CityConfiguration());
         modelBuilder.ApplyConfiguration(new LocationConfiguration());
+        modelBuilder.ApplyConfiguration(new NpcConfiguration());
     }
 }
