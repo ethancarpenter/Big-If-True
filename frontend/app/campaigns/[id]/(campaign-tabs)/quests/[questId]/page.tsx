@@ -2,12 +2,21 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/Badge";
 import { DeleteEntityButton } from "@/components/DeleteEntityButton";
+import { QuestLocationsSection } from "@/components/QuestLocationsSection";
+import { QuestNpcsSection } from "@/components/QuestNpcsSection";
 import { QuestObjectivesChecklist } from "@/components/QuestObjectivesChecklist";
 import { StatusBadge } from "@/components/StatusBadge";
 import { QUEST_STATUS_TONE } from "@/components/quest-status-tone";
 import { QUEST_TYPE_LABELS } from "@/components/quest-type-labels";
 import { formatQuestLevelRange } from "@/lib/format-quest-level";
-import { ApiNotFoundError, getQuest } from "@/lib/api";
+import {
+  ApiNotFoundError,
+  getLocationsForCampaign,
+  getNpcsForCampaign,
+  getQuest,
+  getQuestLocationsForQuest,
+  getQuestNpcsForQuest,
+} from "@/lib/api";
 
 interface QuestDetailPageProps {
   params: Promise<{ id: string; questId: string }>;
@@ -25,6 +34,13 @@ export default async function QuestDetailPage({ params }: QuestDetailPageProps) 
     }
     throw error;
   }
+
+  const [npcRelationships, locationRelationships, campaignNpcs, campaignLocations] = await Promise.all([
+    getQuestNpcsForQuest(questId),
+    getQuestLocationsForQuest(questId),
+    getNpcsForCampaign(campaignId),
+    getLocationsForCampaign(campaignId),
+  ]);
 
   const levelRange = formatQuestLevelRange(quest.recommendedLevelMin, quest.recommendedLevelMax);
 
@@ -61,6 +77,20 @@ export default async function QuestDetailPage({ params }: QuestDetailPageProps) 
       )}
 
       <QuestObjectivesChecklist questId={quest.id} objectives={quest.objectives} />
+
+      <QuestNpcsSection
+        quest={quest}
+        campaignId={campaignId}
+        relationships={npcRelationships}
+        campaignNpcs={campaignNpcs}
+      />
+
+      <QuestLocationsSection
+        quest={quest}
+        campaignId={campaignId}
+        relationships={locationRelationships}
+        campaignLocations={campaignLocations}
+      />
 
       {quest.dmNotes && (
         <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-4">

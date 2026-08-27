@@ -3,7 +3,13 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/Badge";
 import { DeleteEntityButton } from "@/components/DeleteEntityButton";
 import { RELATIONSHIP_TYPE_LABELS } from "@/components/npc-location-relationship-labels";
-import { ApiNotFoundError, getLocation, getNpcLocationsForLocation } from "@/lib/api";
+import { QUEST_LOCATION_ROLE_LABELS } from "@/components/quest-location-role-labels";
+import {
+  ApiNotFoundError,
+  getLocation,
+  getNpcLocationsForLocation,
+  getQuestLocationsForLocation,
+} from "@/lib/api";
 
 interface LocationDetailPageProps {
   params: Promise<{ id: string; locationId: string }>;
@@ -22,7 +28,10 @@ export default async function LocationDetailPage({ params }: LocationDetailPageP
     throw error;
   }
 
-  const npcRelationships = await getNpcLocationsForLocation(locationId);
+  const [npcRelationships, questRelationships] = await Promise.all([
+    getNpcLocationsForLocation(locationId),
+    getQuestLocationsForLocation(locationId),
+  ]);
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -96,6 +105,31 @@ export default async function LocationDetailPage({ params }: LocationDetailPageP
                     ★ Primary
                   </span>
                 )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-foreground">Quests</h3>
+        {questRelationships.length === 0 ? (
+          <p className="text-sm italic text-muted">Not linked to any quests yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {questRelationships.map((relationship) => (
+              <li
+                key={relationship.id}
+                className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-surface px-4 py-3"
+              >
+                <Link
+                  href={`/campaigns/${campaignId}/quests/${relationship.questId}`}
+                  className="text-sm font-medium text-accent hover:underline"
+                >
+                  {relationship.questName}
+                </Link>
+                <Badge>{QUEST_LOCATION_ROLE_LABELS[relationship.role]}</Badge>
+                {relationship.notes && <p className="text-xs text-muted">{relationship.notes}</p>}
               </li>
             ))}
           </ul>

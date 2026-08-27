@@ -6,7 +6,14 @@ import { DeleteEntityButton } from "@/components/DeleteEntityButton";
 import { NpcLocationsSection } from "@/components/NpcLocationsSection";
 import { StatusBadge } from "@/components/StatusBadge";
 import { NPC_STATUS_TONE } from "@/components/npc-status-tone";
-import { ApiNotFoundError, getLocationsForCampaign, getNpc, getNpcLocationsForNpc } from "@/lib/api";
+import { QUEST_NPC_ROLE_LABELS } from "@/components/quest-npc-role-labels";
+import {
+  ApiNotFoundError,
+  getLocationsForCampaign,
+  getNpc,
+  getNpcLocationsForNpc,
+  getQuestNpcsForNpc,
+} from "@/lib/api";
 
 interface NpcDetailPageProps {
   params: Promise<{ id: string; npcId: string }>;
@@ -34,9 +41,10 @@ export default async function NpcDetailPage({ params }: NpcDetailPageProps) {
   }
 
   const presentFields = profileFields.filter((field) => npc[field.key] !== null && npc[field.key] !== "");
-  const [relationships, campaignLocations] = await Promise.all([
+  const [relationships, campaignLocations, questRelationships] = await Promise.all([
     getNpcLocationsForNpc(npcId),
     getLocationsForCampaign(campaignId),
+    getQuestNpcsForNpc(npcId),
   ]);
 
   return (
@@ -108,6 +116,31 @@ export default async function NpcDetailPage({ params }: NpcDetailPageProps) {
         relationships={relationships}
         campaignLocations={campaignLocations}
       />
+
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-foreground">Quests</h3>
+        {questRelationships.length === 0 ? (
+          <p className="text-sm italic text-muted">Not linked to any quests yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {questRelationships.map((relationship) => (
+              <li
+                key={relationship.id}
+                className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-surface px-4 py-3"
+              >
+                <Link
+                  href={`/campaigns/${campaignId}/quests/${relationship.questId}`}
+                  className="text-sm font-medium text-accent hover:underline"
+                >
+                  {relationship.questName}
+                </Link>
+                <Badge>{QUEST_NPC_ROLE_LABELS[relationship.role]}</Badge>
+                {relationship.notes && <p className="text-xs text-muted">{relationship.notes}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <p className="text-xs text-muted">
         Created {new Date(npc.createdAt).toLocaleString()} · Updated{" "}

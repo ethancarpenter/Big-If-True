@@ -239,6 +239,76 @@ export interface ReorderQuestObjectivesRequest {
   objectiveIds: string[];
 }
 
+export const QUEST_NPC_ROLES = [
+  "QuestGiver",
+  "Ally",
+  "Enemy",
+  "Victim",
+  "Contact",
+  "Target",
+  "Witness",
+  "Participant",
+  "Other",
+] as const;
+
+export type QuestNpcRole = (typeof QUEST_NPC_ROLES)[number];
+
+export interface QuestNpc {
+  id: string;
+  questId: string;
+  questName: string;
+  npcId: string;
+  npcName: string;
+  role: QuestNpcRole;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface CreateQuestNpcRequest {
+  npcId: string;
+  role: QuestNpcRole;
+  notes?: string;
+}
+
+export interface UpdateQuestNpcRequest {
+  role: QuestNpcRole;
+  notes?: string;
+}
+
+export const QUEST_LOCATION_ROLES = [
+  "StartingLocation",
+  "ObjectiveLocation",
+  "EncounterLocation",
+  "Destination",
+  "RelatedLocation",
+  "Other",
+] as const;
+
+export type QuestLocationRole = (typeof QUEST_LOCATION_ROLES)[number];
+
+export interface QuestLocation {
+  id: string;
+  questId: string;
+  questName: string;
+  locationId: string;
+  locationName: string;
+  cityName: string;
+  role: QuestLocationRole;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface CreateQuestLocationRequest {
+  locationId: string;
+  role: QuestLocationRole;
+  notes?: string;
+}
+
+export interface UpdateQuestLocationRequest {
+  role: QuestLocationRole;
+  notes?: string;
+}
+
 export class ApiNotFoundError extends Error {
   constructor() {
     super("Not found");
@@ -506,4 +576,70 @@ export async function reorderQuestObjectives(
     body: JSON.stringify(data),
   });
   return handleResponse<QuestObjective[]>(response);
+}
+
+export async function getQuestNpcsForQuest(questId: string): Promise<QuestNpc[]> {
+  const response = await fetch(`${API_URL}/api/quests/${questId}/npcs`, { cache: "no-store" });
+  return handleResponse<QuestNpc[]>(response);
+}
+
+export async function getQuestNpcsForNpc(npcId: string): Promise<QuestNpc[]> {
+  const response = await fetch(`${API_URL}/api/npcs/${npcId}/quests`, { cache: "no-store" });
+  return handleResponse<QuestNpc[]>(response);
+}
+
+export async function createQuestNpc(questId: string, data: CreateQuestNpcRequest): Promise<QuestNpc> {
+  const response = await fetch(`${API_URL}/api/quests/${questId}/npcs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<QuestNpc>(response);
+}
+
+export async function updateQuestNpc(id: string, data: UpdateQuestNpcRequest): Promise<QuestNpc> {
+  const response = await fetch(`${API_URL}/api/quest-npcs/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<QuestNpc>(response);
+}
+
+export async function deleteQuestNpc(id: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/quest-npcs/${id}`, { method: "DELETE" });
+  return handleResponse<void>(response);
+}
+
+export async function getQuestLocationsForQuest(questId: string): Promise<QuestLocation[]> {
+  const response = await fetch(`${API_URL}/api/quests/${questId}/locations`, { cache: "no-store" });
+  return handleResponse<QuestLocation[]>(response);
+}
+
+export async function getQuestLocationsForLocation(locationId: string): Promise<QuestLocation[]> {
+  const response = await fetch(`${API_URL}/api/locations/${locationId}/quests`, { cache: "no-store" });
+  return handleResponse<QuestLocation[]>(response);
+}
+
+export async function createQuestLocation(questId: string, data: CreateQuestLocationRequest): Promise<QuestLocation> {
+  const response = await fetch(`${API_URL}/api/quests/${questId}/locations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<QuestLocation>(response);
+}
+
+export async function updateQuestLocation(id: string, data: UpdateQuestLocationRequest): Promise<QuestLocation> {
+  const response = await fetch(`${API_URL}/api/quest-locations/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<QuestLocation>(response);
+}
+
+export async function deleteQuestLocation(id: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/quest-locations/${id}`, { method: "DELETE" });
+  return handleResponse<void>(response);
 }
