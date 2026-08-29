@@ -166,6 +166,11 @@ if (app.Environment.IsDevelopment())
         }
 
         await dbContext.SaveChangesAsync();
+
+        // Development-only, idempotent: a separate demo@local.test account
+        // and self-contained campaign, so the app can be reviewed without
+        // depending on or cluttering the dev user's own accumulated data.
+        await DemoDataSeeder.SeedAsync(dbContext, hasher);
     }
 }
 
