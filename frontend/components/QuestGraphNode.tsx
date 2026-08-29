@@ -17,10 +17,23 @@ export function QuestGraphNode({ data }: NodeProps<QuestGraphNodeType>) {
   const router = useRouter();
   const { quest, campaignId } = data;
 
+  function open() {
+    router.push(`/campaigns/${campaignId}/quests/${quest.id}`);
+  }
+
   return (
     <div
-      onClick={() => router.push(`/campaigns/${campaignId}/quests/${quest.id}`)}
-      className="w-56 cursor-pointer rounded-lg border border-border bg-surface px-4 py-3 shadow-sm transition-colors hover:border-accent"
+      role="button"
+      tabIndex={0}
+      aria-label={`Open quest ${quest.name}`}
+      onClick={open}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          open();
+        }
+      }}
+      className="w-56 cursor-pointer rounded-lg border border-border bg-surface px-4 py-3 shadow-sm transition-colors hover:border-accent focus-visible:border-accent"
     >
       <Handle type="target" position={Position.Left} className="!h-2.5 !w-2.5 !border-accent !bg-surface" />
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
+import { useDialogFocus } from "./useDialogFocus";
 import {
   createQuestNpc,
   updateQuestNpc,
@@ -38,6 +39,8 @@ export function QuestNpcDialog(props: QuestNpcDialogProps) {
   const [notes, setNotes] = useState(isEdit ? (props.relationship.notes ?? "") : "");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const containerRef = useDialogFocus(props.open, props.onClose);
+  const titleId = useId();
 
   if (!props.open) {
     return null;
@@ -68,8 +71,14 @@ export function QuestNpcDialog(props: QuestNpcDialogProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6">
-        <h2 className="text-lg font-semibold text-foreground">
+      <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="w-full max-w-sm rounded-lg border border-border bg-surface p-6"
+      >
+        <h2 id={titleId} className="text-lg font-semibold text-foreground">
           {isEdit ? "Edit NPC Relationship" : "Add NPC"}
         </h2>
 

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { search, type SearchResult, type SearchResultType } from "@/lib/api";
+import { useDialogFocus } from "./useDialogFocus";
 
 const TYPE_ORDER: SearchResultType[] = ["Campaign", "City", "Location", "Npc", "Quest"];
 
@@ -24,7 +25,6 @@ export function GlobalSearch() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [highlightedIndex, setHighlightedIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   function openSearch() {
     setOpen(true);
@@ -47,6 +47,10 @@ export function GlobalSearch() {
     router.push(url);
   }
 
+  // Focus-into-panel-on-open, the Tab focus trap, Escape-to-close, and
+  // focus-return-to-trigger are all handled by the shared dialog hook.
+  const containerRef = useDialogFocus(open, closeSearch);
+
   // Ctrl/Cmd+K opens from anywhere - it's a modifier chord, not a bare
   // character, so it can't collide with normal typing in any of this app's
   // text fields the way a bare "/" shortcut would.
@@ -55,21 +59,11 @@ export function GlobalSearch() {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         openSearch();
-      } else if (event.key === "Escape") {
-        closeSearch();
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  // Focusing the input is a genuine side effect (imperatively touching the
-  // DOM in response to becoming visible), unlike the state resets above.
-  useEffect(() => {
-    if (open) {
-      inputRef.current?.focus();
-    }
-  }, [open]);
 
   // Debounced, abortable search. Every effect run's cleanup cancels its own
   // still-pending timeout and, if a request already started, aborts it -
@@ -141,16 +135,20 @@ export function GlobalSearch() {
       {open && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 pt-24" onClick={closeSearch}>
           <div
+            ref={containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Search"
             className="w-full max-w-lg overflow-hidden rounded-lg border border-border bg-surface shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <input
-              ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleInputKeyDown}
+              aria-label="Search"
               placeholder="Search campaigns, cities, locations, NPCs, and quests..."
-              className="w-full border-b border-border bg-transparent px-4 py-3 text-foreground outline-none placeholder:text-muted"
+              className="w-full border-b border-border bg-transparent px-4 py-3 text-foreground outline-none focus:border-accent placeholder:text-muted"
             />
 
             <div className="max-h-96 overflow-y-auto p-2">

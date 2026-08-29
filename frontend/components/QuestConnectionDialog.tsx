@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { QUEST_CONNECTION_TYPES, type QuestConnectionType } from "@/lib/api";
 import { QUEST_CONNECTION_TYPE_LABELS } from "./quest-connection-type-labels";
+import { useDialogFocus } from "./useDialogFocus";
 
 interface QuestConnectionDialogProps {
   sourceQuestName: string;
@@ -20,6 +21,8 @@ export function QuestConnectionDialog({
   const [connectionType, setConnectionType] = useState<QuestConnectionType>(QUEST_CONNECTION_TYPES[0]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const containerRef = useDialogFocus(true, onCancel);
+  const titleId = useId();
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -35,8 +38,14 @@ export function QuestConnectionDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6">
-        <h2 className="text-lg font-semibold text-foreground">New Connection</h2>
+      <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="w-full max-w-sm rounded-lg border border-border bg-surface p-6"
+      >
+        <h2 id={titleId} className="text-lg font-semibold text-foreground">New Connection</h2>
         <p className="mt-1 text-sm text-muted">
           {sourceQuestName} <span className="text-accent">→</span> {targetQuestName}
         </p>
