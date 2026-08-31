@@ -1,5 +1,7 @@
 # Big If True
 
+[![CI](https://github.com/ethancarpenter/Big-If-True/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ethancarpenter/Big-If-True/actions/workflows/ci.yml)
+
 A full-stack tabletop RPG campaign management platform built with Next.js, ASP.NET Core, EF Core, and PostgreSQL.
 
 ## Screenshots
