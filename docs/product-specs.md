@@ -75,7 +75,6 @@ The primary demo flow should be:
 * Docker
 * Git
 * GitHub
-* Claude Code
 
 ---
 
