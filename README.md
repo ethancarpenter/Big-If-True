@@ -1,10 +1,11 @@
 # Big If True
 
-A campaign-management tool for tabletop RPG Dungeon Masters, built end-to-end as a portfolio project: authentication and per-user data ownership, a relational domain model (campaigns, cities, locations, NPCs, and quests), a quest dependency graph with cycle detection and a persisted layout, and global search — with an emphasis on the architecture and decisions behind each of those, not just CRUD screens.
+A full-stack tabletop RPG campaign management platform built with Next.js, ASP.NET Core, EF Core, and PostgreSQL.
 
 ## Screenshots
 
-*(Not included in the repository yet — capture and drop into `docs/screenshots/` when available.)* Worth capturing: the Campaign list, a Quest detail page with its objectives checklist, the Quest Graph view, and the Global Search overlay open mid-search.
+<img width="1564" height="999" alt="QuestGraph" src="https://github.com/user-attachments/assets/8fea6c2e-78b5-42dc-85d3-f5731fa0db9b" />
+
 
 ## Key Features
 
