@@ -5,6 +5,9 @@ A full-stack tabletop RPG campaign management platform built with Next.js, ASP.N
 ## Screenshots
 
 <img width="1564" height="999" alt="QuestGraph" src="https://github.com/user-attachments/assets/8fea6c2e-78b5-42dc-85d3-f5731fa0db9b" />
+<img width="1608" height="1091" alt="CampaignOverview" src="https://github.com/user-attachments/assets/e90ba144-9bd2-4b1c-ac4f-fa534fd267bc" />
+<img width="1587" height="1089" alt="SearchFunction" src="https://github.com/user-attachments/assets/5fdc3228-1052-4c6c-8eb8-d49311df690e" />
+<img width="1582" height="1076" alt="NPCScreen" src="https://github.com/user-attachments/assets/8c8c98d9-42b9-4568-a829-d3bf3624a56f" />
 
 
 ## Key Features
