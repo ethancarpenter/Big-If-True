@@ -4,7 +4,7 @@ This repository contains a tabletop RPG campaign-management application.
 
 The full product specification is located at:
 
-@docs/PRODUCT_SPEC.md
+@docs/product-specs.md
 
 ## Development Rules
 
