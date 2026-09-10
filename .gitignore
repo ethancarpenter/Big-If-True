@@ -25,10 +25,11 @@ backend/**/*.user
 # --- Docker ---
 docker-compose.override.yml
 
-# --- Editor / OS ---
+# --- Editor / OS / local tooling ---
 .vs/
 .vscode/
 .idea/
+.claude/
 .DS_Store
 Thumbs.db
 
