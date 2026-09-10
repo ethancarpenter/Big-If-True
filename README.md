@@ -55,14 +55,20 @@ One notable Next.js characteristic worth documenting rather than treating as a b
 
 ## Local Setup
 
-**Prerequisites**: .NET 8 SDK (pinned via `global.json` to `8.0.419`), Node.js 20+, Docker.
+**Prerequisites**: .NET 8 SDK (`global.json` requests `8.0.419` and allows newer .NET 8 feature bands), Node.js 20.9+, and Docker with Docker Compose. The commands below use Bash; PowerShell configuration syntax is provided separately.
 
 ```bash
 git clone https://github.com/ethancarpenter/Big-If-True.git
 cd Big-If-True
 cp .env.example .env
 cp frontend/.env.example frontend/.env.local
+
+# Install once; the version matches the EF Core packages in this project.
+dotnet tool install --global dotnet-ef --version 8.0.10
+dotnet ef --version
 ```
+
+If `dotnet-ef` is already installed at another version, use `dotnet tool update --global dotnet-ef --version 8.0.10 --allow-downgrade`. Ensure the .NET global tools directory is on your PATH.
 
 ## Environment Variables
 
@@ -71,22 +77,38 @@ cp frontend/.env.example frontend/.env.local
 | `.env` (root, from `.env.example`) | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` / `POSTGRES_PORT` | Local Postgres container credentials, consumed by `docker-compose.yml` |
 | `frontend/.env.local` (from `frontend/.env.example`) | `NEXT_PUBLIC_API_URL` | Base URL the frontend calls the backend at (`http://localhost:5080` locally) |
 
-The Postgres credentials in `.env.example` and hardcoded in `backend/CampaignApp.Api/appsettings.Development.json` (`campaignapp` / `campaignapp_dev`) are intentional, documented local-only defaults — they only ever address your own Docker container on `localhost`, never anything externally reachable, so they're safe to commit and aren't a leaked secret.
+The credentials in `.env.example` and `backend/CampaignApp.Api/appsettings.Development.json` (`campaignapp` / `campaignapp_dev`) are public development defaults. Docker Compose binds the database port to `127.0.0.1`; keep that binding for local development and use separate credentials for deployment.
+
+The backend does **not** load the root `.env` file. If you change `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, or `POSTGRES_PORT`, set the matching connection string in the terminal used for migrations and the backend:
+
+```bash
+export ConnectionStrings__DefaultConnection='Host=localhost;Port=5432;Database=campaignapp;Username=campaignapp;Password=YOUR_LOCAL_PASSWORD'
+```
+
+PowerShell equivalent:
+
+```powershell
+$env:ConnectionStrings__DefaultConnection = 'Host=localhost;Port=5432;Database=campaignapp;Username=campaignapp;Password=YOUR_LOCAL_PASSWORD'
+```
+
+Replace all values with those from your `.env`; the example above is only needed when overriding the defaults. PostgreSQL initialization variables apply only to an empty data volume. Changing `.env` does not change credentials or database names in an existing database; update those in PostgreSQL as well and preserve any data you need.
 
 ## Running the Database, Backend, and Frontend
 
 Three separate local processes (the app itself isn't containerized yet — a deliberate scope decision from early in the project, not an oversight):
 
 ```bash
-# 1. Database
-docker compose up -d postgres
+# Terminal 1: from the repository root
+docker compose up -d --wait postgres
 
-# 2. Backend (from backend/CampaignApp.Api)
-dotnet ef database update --project ../CampaignApp.Infrastructure --startup-project .
+# Terminal 2: start from the repository root
+cd backend/CampaignApp.Api
+dotnet ef database update --project ../CampaignApp.Infrastructure --startup-project . -- --environment Development
 dotnet run
 
-# 3. Frontend (from frontend/)
-npm install
+# Terminal 3: start from the repository root
+cd frontend
+npm ci
 npm run dev
 ```
 
@@ -104,8 +126,10 @@ In development, the backend also seeds two accounts on startup (idempotent — s
 Add a migration after changing an entity or `DbContext` configuration:
 
 ```bash
-dotnet ef migrations add <Name> --project CampaignApp.Infrastructure --startup-project CampaignApp.Api
-dotnet ef database update --project CampaignApp.Infrastructure --startup-project CampaignApp.Api
+# From the repository root
+cd backend
+dotnet ef migrations add <Name> --project CampaignApp.Infrastructure --startup-project CampaignApp.Api -- --environment Development
+dotnet ef database update --project CampaignApp.Infrastructure --startup-project CampaignApp.Api -- --environment Development
 ```
 
 One migration, `AddUsersAndCampaignOwnerFk`, includes hand-authored conditional seed SQL (`INSERT ... WHERE EXISTS (...)`) rather than an environment check, so it behaves identically and safely against any fresh database — including CI and production — instead of depending on `ASPNETCORE_ENVIRONMENT`.

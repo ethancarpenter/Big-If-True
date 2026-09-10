@@ -28,7 +28,7 @@ graph LR
 - **API**: containerized (no `Dockerfile` exists yet — writing one is future work, not part of this milestone) and run behind any standard container host.
 - **Database**: a managed PostgreSQL instance rather than a self-run container, for backups/patching/failover without custom operational work.
 - **Frontend**: either a native Next.js host (e.g. Vercel) or containerized alongside the API — either works, since nothing about the frontend depends on being co-located with the backend process.
-- **The one hard requirement**, independent of which specific hosts are chosen: frontend and backend must sit under sibling subdomains of a shared parent domain, per the cookie topology above.
+- **Cookie topology**: use either one reverse-proxied origin or sibling subdomains with the shared cookie domain configured, as described above.
 
 The CI workflow added in this milestone (`.github/workflows/ci.yml`) is a natural place to eventually add a deploy job once a real target is chosen. That's explicitly not part of this milestone.
 
@@ -37,7 +37,7 @@ The CI workflow added in this milestone (`.github/workflows/ci.yml`) is a natura
 Reviewed directly against what's actually committed:
 
 - `.env` and `frontend/.env.local` are correctly gitignored; only their `.example` counterparts are tracked, and neither contains a real secret.
-- The Postgres password in `.env.example` and hardcoded in `appsettings.Development.json` (`campaignapp_dev`) is a local-only default that never addresses anything beyond `localhost` — intentional and documented, not an oversight.
+- The Postgres password in `.env.example` and `appsettings.Development.json` (`campaignapp_dev`) is a public development default. Docker Compose binds its published port to `127.0.0.1`. Preserve that binding for local development; use separate secrets for production. The backend does not read the root `.env`: custom local database values also require a matching `ConnectionStrings__DefaultConnection` override, as shown in the root README.
 - The seeded `dev@local.test` account (Milestone 10) and `demo@local.test` account (this milestone) are both gated behind `IsDevelopment()` in `Program.cs` — structurally unreachable in production regardless of any other configuration, not just disabled by convention.
 - `bin/`, `obj/`, `node_modules/`, and `.next/` are all correctly gitignored generated artifacts.
 
