@@ -1,0 +1,17 @@
+# Build artifacts
+**/bin/
+**/obj/
+
+# Test project - not part of the runtime image
+CampaignApp.Tests/
+
+# IDE / editor / local
+**/.vs/
+**/.idea/
+**/*.user
+
+# VCS (only relevant if the build context is ever widened)
+**/.git/
+
+# Docs
+**/*.md

@@ -1,10 +1,11 @@
 using CampaignApp.Domain.Entities;
 using CampaignApp.Infrastructure.Persistence.Configurations;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace CampaignApp.Infrastructure.Persistence;
 
-public class AppDbContext : DbContext
+public class AppDbContext : DbContext, IDataProtectionKeyContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -22,6 +23,12 @@ public class AppDbContext : DbContext
     public DbSet<QuestLocation> QuestLocations => Set<QuestLocation>();
     public DbSet<QuestConnection> QuestConnections => Set<QuestConnection>();
     public DbSet<QuestGraphPosition> QuestGraphPositions => Set<QuestGraphPosition>();
+
+    // Backing store for the ASP.NET Core Data Protection key ring (see
+    // AddDataProtection().PersistKeysToDbContext in the API's Program.cs).
+    // The Data Protection EF Core provider maps this set by convention; no
+    // entry in OnModelCreating is required.
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -7,6 +7,8 @@ using CampaignApp.Infrastructure.Persistence;
 using CampaignApp.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -124,7 +126,56 @@ builder.Services.AddCors(options =>
     });
 });
 
+// In every non-development environment this API runs behind a TLS-terminating
+// reverse proxy (Render's router, itself typically behind Cloudflare). The
+// proxy speaks plain HTTP to this process and reports the original request
+// scheme in X-Forwarded-Proto. Without honoring that header, every request
+// looks like HTTP here: Request.IsHttps is false, so the Secure-flagged auth
+// and antiforgery cookies (CookieSecurePolicy.Always outside Development) are
+// never issued or accepted, and HttpsRedirection can loop.
+//
+// What is trusted, and why it is safe:
+//   * ONLY X-Forwarded-Proto is consumed. X-Forwarded-For is not (the app
+//     makes no security decision on client IP) and X-Forwarded-Host is not
+//     (host validation stays with AllowedHosts).
+//   * ForwardLimit = 1: only the value appended by the immediate upstream
+//     hop is read; anything a client tries to smuggle earlier in the chain
+//     is discarded.
+//   * KnownProxies / KnownNetworks are cleared rather than pinned. Render
+//     assigns its proxy a dynamic internal address and publishes no stable
+//     proxy IP or CIDR to trust, so there is nothing meaningful to pin. This
+//     is acceptable here because the container's HTTP port is not
+//     internet-routable - the only path to it is through Render's edge,
+//     which sets X-Forwarded-Proto itself and overwrites any inbound value.
+// In Development there is no proxy, so this is left off entirely.
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
+        options.ForwardLimit = 1;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
+
+// Persist the Data Protection key ring in PostgreSQL via EF Core. The key
+// ring signs and encrypts the auth and antiforgery cookies; the default
+// file-system store lives in the container and is lost on every restart or
+// redeploy, which would silently invalidate every active session. Backing it
+// with the database makes it survive restarts, redeploys, and running more
+// than one instance, with no dependency on a persistent disk. SetApplicationName
+// pins the key isolation identifier so it stays stable regardless of hosting.
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<AppDbContext>()
+    .SetApplicationName("CampaignApp");
+
 var app = builder.Build();
+
+// Must run before UseHttpsRedirection / UseAuthentication / UseCors so the
+// rest of the pipeline sees the corrected scheme. No-op in Development (the
+// options above are only registered outside it).
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
