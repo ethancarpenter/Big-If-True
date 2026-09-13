@@ -7,20 +7,23 @@ using Microsoft.EntityFrameworkCore;
 namespace CampaignApp.Api.Infrastructure;
 
 /// <summary>
-/// Idempotent seeding of a self-contained demo account and campaign, kept
-/// separate from the hand-curated dev@local.test data (see Program.cs) so a
-/// reviewer or recruiter can explore a populated campaign without depending
-/// on or cluttering that account.
+/// Idempotent seeding (and, separately, resetting) of a self-contained demo
+/// account and campaign, kept separate from the hand-curated dev@local.test
+/// data (see Program.cs) so a reviewer or recruiter can explore a populated
+/// campaign without depending on or cluttering that account.
 ///
 /// This seeder itself has no notion of "environment" - it just creates or
 /// refreshes whatever account it's told to, under a fixed reserved user id
 /// that normal registration (which always assigns Guid.NewGuid()) can never
-/// collide with. Program.cs is what decides *when* it runs and *which*
-/// credentials it uses:
+/// collide with. Program.cs is what decides *when* SeedAsync runs at startup
+/// and *which* credentials it uses:
 ///   - in Development, always, with the DefaultDevelopmentEmail/Password
 ///     constants below, for local-dev convenience;
 ///   - outside Development, only when DemoSeed:Enabled is true, using the
 ///     DemoSeed:Email / DemoSeed:Password configuration values.
+/// ResetAsync is separate again: it never touches the User row at all (see
+/// DemoLoginResetService for when it runs - on successful demo login, gated
+/// by DemoSeed:ResetOnLogin).
 /// </summary>
 public static class DemoDataSeeder
 {
@@ -32,7 +35,21 @@ public static class DemoDataSeeder
     public const string DefaultDevelopmentEmail = "demo@local.test";
     public const string DefaultDevelopmentPassword = "DemoPassword123!";
 
-    private static readonly Guid DemoUserId = Guid.Parse("00000000-0000-0000-0000-000000000002");
+    /// <summary>
+    /// The reserved demo account's user id - fixed and public so every part
+    /// of the app (seeding, reset-on-login, tests) identifies the demo
+    /// account the same, single way. Never used as an email-based lookup:
+    /// email is configurable, this id is not.
+    /// </summary>
+    public static readonly Guid DemoUserId = Guid.Parse("00000000-0000-0000-0000-000000000002");
+
+    /// <summary>
+    /// Arbitrary but fixed application-specific key for a PostgreSQL
+    /// transaction-scoped advisory lock (see ResetAsync). Only needs to be
+    /// unique within this application - there is no other advisory lock use
+    /// here - and must stay stable across deploys.
+    /// </summary>
+    private const long ResetAdvisoryLockKey = 725_904_831;
 
     public static async Task SeedAsync(AppDbContext dbContext, IPasswordHasher<User> hasher, string email, string password)
     {
@@ -89,6 +106,147 @@ public static class DemoDataSeeder
             return;
         }
 
+        CreateSunkenLanternCampaign(dbContext, now);
+
+        await dbContext.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Resets the demo account's DATA ONLY back to the canonical "The Sunken
+    /// Lantern" campaign: deletes everything currently owned by the reserved
+    /// demo user id (whatever a recruiter left behind - edits, deletions,
+    /// or brand-new entities) and recreates the seed content from scratch.
+    ///
+    /// Deliberately does not touch the User row at all - no id, email,
+    /// password hash, or timestamp change - so this can run on every demo
+    /// login without needing a password hasher or re-establishing the
+    /// account's identity.
+    ///
+    /// Safety:
+    ///   - every delete query below is scoped by ids traced from
+    ///     `WHERE UserId = DemoUserId`, never a table-wide delete, and never
+    ///     touches another user's rows;
+    ///   - delete + recreate happen in ONE SaveChangesAsync call, which EF
+    ///     Core wraps in its own implicit transaction even without the
+    ///     explicit one below - so on any relational provider this step
+    ///     alone is already all-or-nothing;
+    ///   - on a relational provider, the whole operation additionally runs
+    ///     inside an explicit transaction so a Postgres advisory lock (see
+    ///     ResetAdvisoryLockKey) can be held across it, serializing
+    ///     concurrent resets from simultaneous demo logins so two requests
+    ///     can never both recreate the campaign and produce a duplicate;
+    ///     the lock is transaction-scoped and is released automatically on
+    ///     commit or rollback;
+    ///   - on failure, the transaction is rolled back (relational
+    ///     providers) so the demo account is never left half-empty; the
+    ///     exception propagates to the caller (DemoLoginResetService), which
+    ///     fails the login cleanly instead of signing the user into
+    ///     partially reset data.
+    ///
+    /// The in-memory provider used by tests does not support real
+    /// transactions or advisory locks, so both are skipped there - the
+    /// single-SaveChangesAsync atomicity guarantee still applies.
+    /// </summary>
+    public static async Task ResetAsync(AppDbContext dbContext, CancellationToken cancellationToken = default)
+    {
+        var isRelational = dbContext.Database.IsRelational();
+        var transaction = isRelational
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        try
+        {
+            if (isRelational && dbContext.Database.IsNpgsql())
+            {
+                await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT pg_advisory_xact_lock({ResetAdvisoryLockKey})", cancellationToken);
+            }
+
+            await DeleteDemoCampaignDataAsync(dbContext, cancellationToken);
+            CreateSunkenLanternCampaign(dbContext, DateTime.UtcNow);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+        }
+        catch
+        {
+            if (transaction is not null)
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+            }
+            throw;
+        }
+        finally
+        {
+            if (transaction is not null)
+            {
+                await transaction.DisposeAsync();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Deletes every entity reachable from the reserved demo user's
+    /// campaigns. Every query below is filtered by an id list traced back to
+    /// `Campaigns.UserId == DemoUserId` - nothing here can reach another
+    /// user's rows. Explicit per-table deletes are used instead of relying
+    /// on the database's own ON DELETE CASCADE (which IS configured - see
+    /// the *Configuration classes - Cascade throughout) so this behaves
+    /// identically on the in-memory provider used by tests, which has no
+    /// real foreign keys to cascade through.
+    /// </summary>
+    private static async Task DeleteDemoCampaignDataAsync(AppDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var campaigns = await dbContext.Campaigns
+            .Where(c => c.UserId == DemoUserId)
+            .ToListAsync(cancellationToken);
+        if (campaigns.Count == 0)
+        {
+            return;
+        }
+
+        var campaignIds = campaigns.Select(c => c.Id).ToList();
+
+        var quests = await dbContext.Quests.Where(q => campaignIds.Contains(q.CampaignId)).ToListAsync(cancellationToken);
+        var questIds = quests.Select(q => q.Id).ToList();
+        var locations = await dbContext.Locations.Where(l => campaignIds.Contains(l.CampaignId)).ToListAsync(cancellationToken);
+        var npcs = await dbContext.Npcs.Where(n => campaignIds.Contains(n.CampaignId)).ToListAsync(cancellationToken);
+        var npcIds = npcs.Select(n => n.Id).ToList();
+        var cities = await dbContext.Cities.Where(c => campaignIds.Contains(c.CampaignId)).ToListAsync(cancellationToken);
+
+        var questObjectives = await dbContext.QuestObjectives.Where(o => questIds.Contains(o.QuestId)).ToListAsync(cancellationToken);
+        var questNpcs = await dbContext.QuestNpcs.Where(qn => questIds.Contains(qn.QuestId)).ToListAsync(cancellationToken);
+        var questLocations = await dbContext.QuestLocations.Where(ql => questIds.Contains(ql.QuestId)).ToListAsync(cancellationToken);
+        var questConnections = await dbContext.QuestConnections
+            .Where(qc => questIds.Contains(qc.SourceQuestId) || questIds.Contains(qc.TargetQuestId))
+            .ToListAsync(cancellationToken);
+        var questGraphPositions = await dbContext.QuestGraphPositions.Where(p => questIds.Contains(p.QuestId)).ToListAsync(cancellationToken);
+        var npcLocations = await dbContext.NpcLocations.Where(nl => npcIds.Contains(nl.NpcId)).ToListAsync(cancellationToken);
+
+        dbContext.QuestObjectives.RemoveRange(questObjectives);
+        dbContext.QuestNpcs.RemoveRange(questNpcs);
+        dbContext.QuestLocations.RemoveRange(questLocations);
+        dbContext.QuestConnections.RemoveRange(questConnections);
+        dbContext.QuestGraphPositions.RemoveRange(questGraphPositions);
+        dbContext.NpcLocations.RemoveRange(npcLocations);
+        dbContext.Quests.RemoveRange(quests);
+        dbContext.Locations.RemoveRange(locations);
+        dbContext.Npcs.RemoveRange(npcs);
+        dbContext.Cities.RemoveRange(cities);
+        dbContext.Campaigns.RemoveRange(campaigns);
+    }
+
+    /// <summary>
+    /// Adds the canonical "The Sunken Lantern" campaign and its content to
+    /// the context under the reserved demo user id. Does not call
+    /// SaveChangesAsync - the caller controls when (and with what else) that
+    /// happens, so both SeedAsync (fresh install) and ResetAsync (recurring
+    /// reset) can share this without duplicating the dataset definition.
+    /// </summary>
+    private static void CreateSunkenLanternCampaign(AppDbContext dbContext, DateTime now)
+    {
         var campaign = new Campaign
         {
             Id = Guid.NewGuid(),
@@ -343,7 +501,5 @@ public static class DemoDataSeeder
             new QuestGraphPosition { Id = Guid.NewGuid(), QuestId = findKeeper.Id, X = 0, Y = 0, CreatedAt = now, UpdatedAt = now },
             new QuestGraphPosition { Id = Guid.NewGuid(), QuestId = smugglingRing.Id, X = 300, Y = 0, CreatedAt = now, UpdatedAt = now },
             new QuestGraphPosition { Id = Guid.NewGuid(), QuestId = marketRumors.Id, X = 300, Y = 180, CreatedAt = now, UpdatedAt = now });
-
-        await dbContext.SaveChangesAsync();
     }
 }

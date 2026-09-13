@@ -123,6 +123,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<ICurrentUserProvider, HttpContextCurrentUserProvider>();
+builder.Services.AddScoped<IDemoLoginResetService, DemoLoginResetService>();
 
 builder.Services.AddCors(options =>
 {

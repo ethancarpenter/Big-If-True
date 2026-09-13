@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using CampaignApp.Api.Infrastructure;
 using CampaignApp.Application.DTOs;
 using CampaignApp.Application.Services;
 using Microsoft.AspNetCore.Antiforgery;
@@ -15,11 +16,13 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IAntiforgery _antiforgery;
+    private readonly IDemoLoginResetService _demoLoginReset;
 
-    public AuthController(IAuthService authService, IAntiforgery antiforgery)
+    public AuthController(IAuthService authService, IAntiforgery antiforgery, IDemoLoginResetService demoLoginReset)
     {
         _authService = authService;
         _antiforgery = antiforgery;
+        _demoLoginReset = demoLoginReset;
     }
 
     /// <summary>
@@ -58,6 +61,18 @@ public class AuthController : ControllerBase
         if (result.Outcome == LoginOutcome.InvalidCredentials)
         {
             return Unauthorized();
+        }
+
+        // Only reached after credentials are already validated - a failed
+        // login attempt never reaches, and never triggers, a demo reset.
+        // For every account except the reserved demo user (identified by
+        // id, not email) with DemoSeed:ResetOnLogin enabled, this is a
+        // no-op. On reset failure, fail the login cleanly rather than sign
+        // the caller into partially reset demo data.
+        var readyToSignIn = await _demoLoginReset.ResetIfDemoAccountAsync(result.User!.Id);
+        if (!readyToSignIn)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError);
         }
 
         await SignInAsync(result.User!);

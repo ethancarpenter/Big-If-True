@@ -1,5 +1,6 @@
 using CampaignApp.Api.Infrastructure;
 using CampaignApp.Domain.Entities;
+using CampaignApp.Domain.Enums;
 using CampaignApp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -155,5 +156,188 @@ public class DemoDataSeederTests
         // The real account that happened to hold that email is untouched.
         var stillThere = await context.Users.SingleAsync(u => u.Email == "demo@ethancarpenter.dev");
         Assert.Equal(existingUser.Id, stillThere.Id);
+    }
+
+    [Fact]
+    public async Task ResetAsync_ModifiedCampaignContent_IsRestoredToCanonicalState()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await using var context = CreateContext(dbName);
+        var hasher = new PasswordHasher<User>();
+        await DemoDataSeeder.SeedAsync(context, hasher, "demo@ethancarpenter.dev", "SuperSecretDemoPass1!");
+
+        var campaign = await context.Campaigns.SingleAsync(c => c.UserId == DemoUserId);
+        campaign.Name = "Whatever a recruiter renamed it to";
+        campaign.Description = "Edited beyond recognition";
+        await context.SaveChangesAsync();
+
+        await DemoDataSeeder.ResetAsync(context);
+
+        var restored = await context.Campaigns.SingleAsync(c => c.UserId == DemoUserId);
+        Assert.Equal("The Sunken Lantern", restored.Name);
+        Assert.Contains("smuggling ring", restored.Description);
+    }
+
+    [Fact]
+    public async Task ResetAsync_DeletedEntities_ReturnAfterReset()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await using var context = CreateContext(dbName);
+        var hasher = new PasswordHasher<User>();
+        await DemoDataSeeder.SeedAsync(context, hasher, "demo@ethancarpenter.dev", "SuperSecretDemoPass1!");
+
+        var campaign = await context.Campaigns.SingleAsync(c => c.UserId == DemoUserId);
+        var quests = await context.Quests.Where(q => q.CampaignId == campaign.Id).ToListAsync();
+        context.Quests.RemoveRange(quests);
+        var npcs = await context.Npcs.Where(n => n.CampaignId == campaign.Id).ToListAsync();
+        context.Npcs.RemoveRange(npcs);
+        await context.SaveChangesAsync();
+
+        Assert.False(await context.Quests.AnyAsync(q => q.CampaignId == campaign.Id));
+        Assert.False(await context.Npcs.AnyAsync(n => n.CampaignId == campaign.Id));
+
+        await DemoDataSeeder.ResetAsync(context);
+
+        var restoredCampaign = await context.Campaigns.SingleAsync(c => c.UserId == DemoUserId);
+        Assert.True(await context.Quests.AnyAsync(q => q.CampaignId == restoredCampaign.Id && q.Name == "The Missing Keeper"));
+        Assert.True(await context.Npcs.AnyAsync(n => n.CampaignId == restoredCampaign.Id && n.Name == "Old Corrin"));
+    }
+
+    [Fact]
+    public async Task ResetAsync_NewlyCreatedEntities_DisappearAfterReset()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await using var context = CreateContext(dbName);
+        var hasher = new PasswordHasher<User>();
+        await DemoDataSeeder.SeedAsync(context, hasher, "demo@ethancarpenter.dev", "SuperSecretDemoPass1!");
+
+        var now = DateTime.UtcNow;
+        var extraCampaign = new Campaign
+        {
+            Id = Guid.NewGuid(),
+            UserId = DemoUserId,
+            Name = "A recruiter's own campaign",
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        context.Campaigns.Add(extraCampaign);
+        var originalCampaign = await context.Campaigns.SingleAsync(c => c.Name == "The Sunken Lantern");
+        context.Npcs.Add(new Npc { Id = Guid.NewGuid(), CampaignId = originalCampaign.Id, Name = "A brand new NPC", Status = NpcStatus.Alive, CreatedAt = now, UpdatedAt = now });
+        await context.SaveChangesAsync();
+
+        await DemoDataSeeder.ResetAsync(context);
+
+        var demoCampaigns = await context.Campaigns.Where(c => c.UserId == DemoUserId).ToListAsync();
+        Assert.Single(demoCampaigns);
+        Assert.Equal("The Sunken Lantern", demoCampaigns[0].Name);
+        Assert.False(await context.Npcs.AnyAsync(n => n.Name == "A brand new NPC"));
+    }
+
+    [Fact]
+    public async Task ResetAsync_ResultsInExactlyOneCanonicalCampaign()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await using var context = CreateContext(dbName);
+        var hasher = new PasswordHasher<User>();
+        await DemoDataSeeder.SeedAsync(context, hasher, "demo@ethancarpenter.dev", "SuperSecretDemoPass1!");
+
+        await DemoDataSeeder.ResetAsync(context);
+
+        var campaigns = await context.Campaigns.Where(c => c.UserId == DemoUserId).ToListAsync();
+        var campaign = Assert.Single(campaigns);
+        Assert.Equal("The Sunken Lantern", campaign.Name);
+    }
+
+    [Fact]
+    public async Task ResetAsync_RunTwiceInARow_RemainsIdempotentWithNoDuplicates()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await using var context = CreateContext(dbName);
+        var hasher = new PasswordHasher<User>();
+        await DemoDataSeeder.SeedAsync(context, hasher, "demo@ethancarpenter.dev", "SuperSecretDemoPass1!");
+
+        await DemoDataSeeder.ResetAsync(context);
+        await DemoDataSeeder.ResetAsync(context);
+
+        Assert.Equal(1, await context.Campaigns.CountAsync(c => c.UserId == DemoUserId));
+        Assert.Equal(3, await context.Quests.CountAsync());
+        Assert.Equal(3, await context.Npcs.CountAsync());
+    }
+
+    [Fact]
+    public async Task ResetAsync_DoesNotChangeTheDemoUserRow()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await using var context = CreateContext(dbName);
+        var hasher = new PasswordHasher<User>();
+        await DemoDataSeeder.SeedAsync(context, hasher, "demo@ethancarpenter.dev", "SuperSecretDemoPass1!");
+
+        var before = await context.Users.SingleAsync(u => u.Id == DemoUserId);
+        var beforeSnapshot = (before.Id, before.Email, before.NormalizedEmail, before.PasswordHash, before.CreatedAt, before.UpdatedAt);
+
+        await DemoDataSeeder.ResetAsync(context);
+
+        var after = await context.Users.SingleAsync(u => u.Id == DemoUserId);
+        Assert.Equal(beforeSnapshot, (after.Id, after.Email, after.NormalizedEmail, after.PasswordHash, after.CreatedAt, after.UpdatedAt));
+    }
+
+    [Fact]
+    public async Task ResetAsync_DoesNotTouchOtherUsersCampaigns()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await using var context = CreateContext(dbName);
+        var hasher = new PasswordHasher<User>();
+        await DemoDataSeeder.SeedAsync(context, hasher, "demo@ethancarpenter.dev", "SuperSecretDemoPass1!");
+
+        var realUserId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var realUser = new User
+        {
+            Id = realUserId,
+            Email = "recruiter@example.com",
+            NormalizedEmail = "RECRUITER@EXAMPLE.COM",
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        realUser.PasswordHash = hasher.HashPassword(realUser, "RealUserPassword1!");
+        context.Users.Add(realUser);
+        var realCampaign = new Campaign { Id = Guid.NewGuid(), UserId = realUserId, Name = "My Real Campaign", CreatedAt = now, UpdatedAt = now };
+        context.Campaigns.Add(realCampaign);
+        var realNpc = new Npc { Id = Guid.NewGuid(), CampaignId = realCampaign.Id, Name = "Real NPC", Status = NpcStatus.Alive, CreatedAt = now, UpdatedAt = now };
+        context.Npcs.Add(realNpc);
+        await context.SaveChangesAsync();
+
+        await DemoDataSeeder.ResetAsync(context);
+
+        Assert.Equal(1, await context.Campaigns.CountAsync(c => c.UserId == realUserId));
+        Assert.True(await context.Npcs.AnyAsync(n => n.Id == realNpc.Id));
+        Assert.True(await context.Users.AnyAsync(u => u.Id == realUserId));
+    }
+
+    [Fact]
+    public async Task ResetAsync_Cancelled_LeavesExistingDataCompletelyUnchanged()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await using var context = CreateContext(dbName);
+        var hasher = new PasswordHasher<User>();
+        await DemoDataSeeder.SeedAsync(context, hasher, "demo@ethancarpenter.dev", "SuperSecretDemoPass1!");
+
+        var beforeCampaign = await context.Campaigns.SingleAsync(c => c.UserId == DemoUserId);
+        var beforeQuestCount = await context.Quests.CountAsync();
+        var beforeNpcCount = await context.Npcs.CountAsync();
+
+        using var alreadyCancelled = new CancellationTokenSource();
+        alreadyCancelled.Cancel();
+
+        // Whatever the failure, the delete-then-recreate must never leave
+        // the account half-empty: either it all lands, or none of it does.
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => DemoDataSeeder.ResetAsync(context, alreadyCancelled.Token));
+
+        var afterCampaign = await context.Campaigns.SingleAsync(c => c.UserId == DemoUserId);
+        Assert.Equal(beforeCampaign.Id, afterCampaign.Id);
+        Assert.Equal(beforeCampaign.Name, afterCampaign.Name);
+        Assert.Equal(beforeQuestCount, await context.Quests.CountAsync());
+        Assert.Equal(beforeNpcCount, await context.Npcs.CountAsync());
     }
 }
