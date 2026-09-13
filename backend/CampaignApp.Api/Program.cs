@@ -49,6 +49,16 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
             ? CookieSecurePolicy.SameAsRequest
             : CookieSecurePolicy.Always;
+        // The frontend (campaigns.ethancarpenter.dev) and this API
+        // (api-campaigns.ethancarpenter.dev) are sibling subdomains, so the
+        // auth cookie needs an explicit parent domain to be sent cross-origin
+        // between them. Left unset in Development so local testing keeps the
+        // default host-only cookie.
+        var cookieDomain = builder.Configuration["CookieDomain"];
+        if (!builder.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(cookieDomain))
+        {
+            options.Cookie.Domain = cookieDomain;
+        }
         options.ExpireTimeSpan = TimeSpan.FromDays(14);
         options.SlidingExpiration = true;
         // This is a pure JSON API - there's no login page on this server (it
