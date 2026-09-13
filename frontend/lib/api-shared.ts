@@ -1,10 +1,13 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// The demo account's email is public by design (it's shown on the login
-// page for recruiters to try) so it's safe as a build-time-inlined public
-// env var, unlike the demo password - see LoginForm for why that one is
-// deliberately NOT wired up here.
+// Both the demo account's email AND password are PUBLIC BY DESIGN: this is
+// a single shared recruiter demo account, not a real user's credentials,
+// and its data resets on every login (see DemoDataSeeder.ResetAsync on the
+// backend) specifically so it's safe to publish and hand out freely. Treat
+// neither of these as secrets - they are build-time-inlined into the public
+// JS bundle on purpose, the same way NEXT_PUBLIC_API_URL is.
 export const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL;
+export const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
 
 export class ApiNotFoundError extends Error {
   constructor() {
