@@ -1,5 +1,11 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+// The demo account's email is public by design (it's shown on the login
+// page for recruiters to try) so it's safe as a build-time-inlined public
+// env var, unlike the demo password - see LoginForm for why that one is
+// deliberately NOT wired up here.
+export const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL;
+
 export class ApiNotFoundError extends Error {
   constructor() {
     super("Not found");
