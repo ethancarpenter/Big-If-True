@@ -192,17 +192,21 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
 
-    // Development-only, idempotent: ensure the known dev@local.test /
-    // DevPassword123! credential exists and is current, so the campaigns
-    // seeded under the legacy placeholder id (see the
-    // AddUsersAndCampaignOwnerFk migration) stay reachable in local dev.
-    // This is the ONLY place that password is ever established - never in
-    // a migration, and structurally unreachable outside Development.
-    using (var scope = app.Services.CreateScope())
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
+
+    if (app.Environment.IsDevelopment())
     {
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
+        // Development-only, idempotent: ensure the known dev@local.test /
+        // DevPassword123! credential exists and is current, so the campaigns
+        // seeded under the legacy placeholder id (see the
+        // AddUsersAndCampaignOwnerFk migration) stay reachable in local dev.
+        // This is the ONLY place that password is ever established - never in
+        // a migration, and structurally unreachable outside Development.
         var devUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
 
         var devUser = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == devUserId);
@@ -231,7 +235,42 @@ if (app.Environment.IsDevelopment())
         // Development-only, idempotent: a separate demo@local.test account
         // and self-contained campaign, so the app can be reviewed without
         // depending on or cluttering the dev user's own accumulated data.
-        await DemoDataSeeder.SeedAsync(dbContext, hasher);
+        await DemoDataSeeder.SeedAsync(dbContext, hasher, DemoDataSeeder.DefaultDevelopmentEmail, DemoDataSeeder.DefaultDevelopmentPassword);
+    }
+    else
+    {
+        // Outside Development, the demo account is opt-in only: it never
+        // runs unless DemoSeed:Enabled is explicitly set (Render env var
+        // DemoSeed__Enabled=true), and it never touches dev@local.test or
+        // any other seeding path. This is also the ONLY place the demo
+        // password is established outside Development - it is never
+        // hard-coded and never logged. DemoSeedGate.Resolve is the pure,
+        // unit-tested decision of whether/how to proceed.
+        var gate = DemoSeedGate.Resolve(
+            builder.Configuration.GetValue<bool>("DemoSeed:Enabled"),
+            builder.Configuration["DemoSeed:Email"],
+            builder.Configuration["DemoSeed:Password"]);
+
+        if (gate.Decision == DemoSeedGate.Decision.MisconfiguredSkip)
+        {
+            scope.ServiceProvider.GetRequiredService<ILogger<Program>>().LogError(gate.Warning);
+        }
+        else if (gate.Decision == DemoSeedGate.Decision.Seed)
+        {
+            try
+            {
+                await DemoDataSeeder.SeedAsync(dbContext, hasher, gate.Email!, gate.Password!);
+            }
+            catch (Exception ex)
+            {
+                // A demo-seeding problem (e.g. the configured email already
+                // belongs to a real user) must never take down API startup
+                // or touch unrelated data - log and continue. The password
+                // value itself is never included in this message.
+                scope.ServiceProvider.GetRequiredService<ILogger<Program>>()
+                    .LogError(ex, "Demo account seeding failed and was skipped.");
+            }
+        }
     }
 }
 

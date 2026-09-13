@@ -7,38 +7,73 @@ using Microsoft.EntityFrameworkCore;
 namespace CampaignApp.Api.Infrastructure;
 
 /// <summary>
-/// Development-only, idempotent seeding of a self-contained demo@local.test
-/// account and campaign, separate from the hand-curated dev@local.test data
-/// (see Program.cs) so a reviewer can explore a populated campaign without
-/// depending on or cluttering that account. Called from the same
-/// IsDevelopment() block that seeds the dev user - structurally unreachable
-/// in production, exactly like that seed.
+/// Idempotent seeding of a self-contained demo account and campaign, kept
+/// separate from the hand-curated dev@local.test data (see Program.cs) so a
+/// reviewer or recruiter can explore a populated campaign without depending
+/// on or cluttering that account.
+///
+/// This seeder itself has no notion of "environment" - it just creates or
+/// refreshes whatever account it's told to, under a fixed reserved user id
+/// that normal registration (which always assigns Guid.NewGuid()) can never
+/// collide with. Program.cs is what decides *when* it runs and *which*
+/// credentials it uses:
+///   - in Development, always, with the DefaultDevelopmentEmail/Password
+///     constants below, for local-dev convenience;
+///   - outside Development, only when DemoSeed:Enabled is true, using the
+///     DemoSeed:Email / DemoSeed:Password configuration values.
 /// </summary>
 public static class DemoDataSeeder
 {
+    /// <summary>
+    /// Convenience defaults used only by Development's unconditional demo
+    /// seeding step in Program.cs. Never used outside Development, and never
+    /// used as a fallback for production's DemoSeed:* configuration.
+    /// </summary>
+    public const string DefaultDevelopmentEmail = "demo@local.test";
+    public const string DefaultDevelopmentPassword = "DemoPassword123!";
+
     private static readonly Guid DemoUserId = Guid.Parse("00000000-0000-0000-0000-000000000002");
 
-    public static async Task SeedAsync(AppDbContext dbContext, IPasswordHasher<User> hasher)
+    public static async Task SeedAsync(AppDbContext dbContext, IPasswordHasher<User> hasher, string email, string password)
     {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        {
+            throw new ArgumentException("Demo account email and password must both be provided.");
+        }
+
         var now = DateTime.UtcNow;
+        var normalizedEmail = email.Trim().ToUpperInvariant();
 
         var demoUser = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == DemoUserId);
         if (demoUser is null)
         {
+            // Guard against the configured demo email already belonging to a
+            // real, independently-registered user - never take over or
+            // collide with another account's row.
+            var emailBelongsToAnotherUser = await dbContext.Users
+                .AnyAsync(u => u.NormalizedEmail == normalizedEmail && u.Id != DemoUserId);
+            if (emailBelongsToAnotherUser)
+            {
+                throw new InvalidOperationException(
+                    "Demo seeding aborted: the configured demo email is already registered to a different, non-demo user.");
+            }
+
             demoUser = new User
             {
                 Id = DemoUserId,
-                Email = "demo@local.test",
-                NormalizedEmail = "DEMO@LOCAL.TEST",
+                Email = email.Trim(),
+                NormalizedEmail = normalizedEmail,
                 CreatedAt = now,
                 UpdatedAt = now,
             };
-            demoUser.PasswordHash = hasher.HashPassword(demoUser, "DemoPassword123!");
+            demoUser.PasswordHash = hasher.HashPassword(demoUser, password);
             dbContext.Users.Add(demoUser);
         }
         else
         {
-            demoUser.PasswordHash = hasher.HashPassword(demoUser, "DemoPassword123!");
+            demoUser.Email = email.Trim();
+            demoUser.NormalizedEmail = normalizedEmail;
+            demoUser.PasswordHash = hasher.HashPassword(demoUser, password);
             demoUser.UpdatedAt = now;
         }
 

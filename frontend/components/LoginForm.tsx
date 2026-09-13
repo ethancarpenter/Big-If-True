@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ApiUnauthorizedError, loginUser } from "@/lib/api";
+import { DEMO_EMAIL } from "@/lib/api-shared";
 
 export function LoginForm() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDemoInfo, setShowDemoInfo] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -84,6 +86,30 @@ export function LoginForm() {
           Register
         </Link>
       </p>
+
+      {DEMO_EMAIL && (
+        <div className="mt-6 border-t border-border pt-4 text-center">
+          <p className="text-sm text-muted">Want to explore without creating an account?</p>
+          <button
+            type="button"
+            onClick={() => setShowDemoInfo((shown) => !shown)}
+            className="mt-2 rounded-md border border-border px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-accent"
+            aria-expanded={showDemoInfo}
+          >
+            Try Demo
+          </button>
+
+          {showDemoInfo && (
+            <div className="mt-3 rounded-md border border-border bg-background p-3 text-left text-sm">
+              <p className="font-medium text-foreground">Demo Account</p>
+              <p className="mt-1 text-muted">
+                Email: <span className="text-foreground">{DEMO_EMAIL}</span>
+              </p>
+              <p className="mt-1 text-muted">Password: supplied separately - ask Ethan for demo access.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
